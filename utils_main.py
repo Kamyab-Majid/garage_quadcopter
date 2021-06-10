@@ -51,11 +51,11 @@ class save_files:
         if not os.path.exists(self.path):
             os.makedirs(self.path)
 
-    def best_reward_save(self, all_t, all_actions, all_obs, all_rewards, control_rewards, header):
+    def best_reward_save(self, all_t, all_actions, all_obs, all_rewards, control_rewards, header, control_input=np.array((0., 0., 0., 0.))):
         date = datetime.now().strftime("%Y_%m_%d-%I_%M_%S_%p")
         np.savetxt(
             f"{self.path_best_reward}/best_rewards{date}.csv",
-            np.c_[all_t, all_actions, all_obs, all_rewards, control_rewards],
+            np.c_[all_t, all_actions, all_obs, all_rewards, control_input, control_rewards],
             delimiter=",",
             header=header,
         )

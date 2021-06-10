@@ -1,1 +1,4 @@
-/garage
+garage
+results
+*.csv
+data

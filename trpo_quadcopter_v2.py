@@ -16,8 +16,9 @@ from garage.trainer import Trainer
 import gym
 import envs
 
+
 @wrap_experiment
-def trpo_pendulum(ctxt=None, seed=1):
+def trpo_quadcopter(ctxt=None, seed=1):
     """Train TRPO with InvertedDoublePendulum-v2 environment.
 
     Args:
@@ -28,34 +29,32 @@ def trpo_pendulum(ctxt=None, seed=1):
 
     """
     set_seed(seed)
-    fake_env = gym.make('CustomEnv-v0') 
-    env = GymEnv('CustomEnv-v0',max_episode_length=fake_env.numTimeStep)
+    fake_env = gym.make("CustomEnv-v0")
+    env = GymEnv("CustomEnv-v0", max_episode_length=fake_env.numTimeStep)
 
     trainer = Trainer(ctxt)
 
-    policy = GaussianMLPPolicy(env.spec,
-                               hidden_sizes=[32, 32],
-                               hidden_nonlinearity=torch.tanh,
-                               output_nonlinearity=None)
+    policy = GaussianMLPPolicy(
+        env.spec, hidden_sizes=(200, 200), hidden_nonlinearity=torch.relu, output_nonlinearity=torch.tanh
+    )
 
-    value_function = GaussianMLPValueFunction(env_spec=env.spec,
-                                              hidden_sizes=(32, 32),
-                                              hidden_nonlinearity=torch.tanh,
-                                              output_nonlinearity=None)
+    value_function = GaussianMLPValueFunction(
+        env_spec=env.spec, hidden_sizes=(200, 200), hidden_nonlinearity=torch.relu, output_nonlinearity=torch.tanh
+    )
 
-    sampler = LocalSampler(agents=policy,
-                           envs=env,
-                           max_episode_length=env.spec.max_episode_length)
+    sampler = LocalSampler(agents=policy, envs=env, max_episode_length=env.spec.max_episode_length)
 
-    algo = TRPO(env_spec=env.spec,
-                policy=policy,
-                value_function=value_function,
-                sampler=sampler,
-                discount=0.99,
-                center_adv=False)
+    algo = TRPO(
+        env_spec=env.spec,
+        policy=policy,
+        value_function=value_function,
+        sampler=sampler,
+        discount=0.995,
+        center_adv=False,
+    )
 
     trainer.setup(algo, env)
     trainer.train(n_epochs=100, batch_size=1024)
 
 
-trpo_pendulum(seed=1)
+trpo_quadcopter(seed=1)
