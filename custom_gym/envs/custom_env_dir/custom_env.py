@@ -33,10 +33,10 @@ class CustomEnv(gym.Env, ABC):
         self.My_controller = Controller()
         self.t = sp.symbols("t")
         self.symbolic_states_math, jacobian = self.My_helicopter.lambd_eq_maker(self.t, self.x_state, self.U_input)
-        self.default_range = default_range = (-1, 1)
-        self.velocity_range = velocity_range = (-2, 2)
-        self.ang_velocity_range = ang_velocity_range = (-0.1, 1)
-        self.ang_p_velocity_range = ang_p_velocity_range = (-0.5, 5)
+        self.default_range = default_range = (-100, 100)
+        self.velocity_range = velocity_range = (-200, 200)
+        self.ang_velocity_range = ang_velocity_range = (-100, 100)
+        self.ang_p_velocity_range = ang_p_velocity_range = (-100, 100)
         self.Ti, self.Ts, self.Tf = 0, 0.03, 2
         self.observation_space_domain = {
             "u_velocity": velocity_range,
@@ -45,16 +45,16 @@ class CustomEnv(gym.Env, ABC):
             "p_angle": ang_p_velocity_range,
             "q_angle": ang_velocity_range,
             "r_angle": ang_velocity_range,
-            "fi_angle": (-0.4, 0.2),
-            "theta_angle": (-0.1, 0.1),
-            "si_angle": (-0.1, 0.1),
-            "xI": (-0.1, 0.1),
-            "yI": (-0.1, 0.1),
-            "zI": (-0.1, 0.1),
-            "a_flapping": (-0.1, 0.1),
-            "b_flapping": (-0.1, 0.1),
-            "c_flapping": (-0.1, 0.1),
-            "d_flapping": (-0.1, 0.1),
+            "fi_angle": velocity_range,
+            "theta_angle": velocity_range,
+            "si_angle": velocity_range,
+            "xI": velocity_range,
+            "yI": velocity_range,
+            "zI": velocity_range,
+            "a_flapping": velocity_range,
+            "b_flapping": velocity_range,
+            "c_flapping": velocity_range,
+            "d_flapping": velocity_range,
             # "t": (self.Ti, self.Tf),
             "delta_col": (-0.5, 1),
             "delta_lat": (-0.5, 1),
@@ -150,8 +150,10 @@ class CustomEnv(gym.Env, ABC):
         self.diverge_list = []
         self.numTimeStep = int(self.Tf / self.Ts + 1)
         self.ifsave = 0
-        self.low_control_input = [-0.5, -0.5, -0.5, -0.5]
-        self.high_control_input = [1, 1, 1, 1]
+        self.low_control_input = [0.01, -0.1, -0.1, 0.01]
+        self.high_control_input = [0.5, 0.1, 0.1, 0.5]
+        self.cont_inp_dom = {"col": (-2.1, 2, 1), "lat": (-3.2, 3.2), "lon": (-3.5, 3.5), "ped": (-1.1, 1.1)}
+        self.cont_str = list(self.cont_inp_dom.keys())
 
     def reset(self):
         # initialization
@@ -188,7 +190,7 @@ class CustomEnv(gym.Env, ABC):
         self.all_obs[self.counter] = self.observation = np.append(self.current_states, self.control_input)
         self.done = False
         self.integral_error = 0
-        for iii in range(len(self.high_obs_space)):
+        for iii in range(4):
             current_range = self.observation_space_domain[self.states_str[iii]]
             self.observation[iii] = (
                 2 * (self.observation[iii] - current_range[0]) / (current_range[1] - current_range[0]) - 1
@@ -205,6 +207,11 @@ class CustomEnv(gym.Env, ABC):
         self.control_input[1] = un_act[2] * obs[9] + un_act[3] * obs[0] + un_act[4] * obs[4] + un_act[5] * obs[7]
         self.control_input[2] = un_act[6] * obs[10] + un_act[7] * obs[1] + un_act[8] * obs[3] + un_act[9] * obs[6]
         self.control_input[3] = un_act[10] * obs[5] + un_act[11] * obs[8]
+        self.control_input[0] = 0.1167 * self.control_input[0] + 0.2533
+        self.control_input[1] = 0.03125 * self.control_input[1]
+        self.control_input[2] = 0.02857 * self.control_input[2]
+        self.control_input[3] = 0.2227 * self.control_input[3] + 0.2531
+
         self.all_control[self.counter] = self.control_input = np.clip(
             self.control_input, self.low_control_input, self.high_control_input
         )
