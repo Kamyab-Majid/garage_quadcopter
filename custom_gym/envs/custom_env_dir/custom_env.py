@@ -10,6 +10,7 @@ from utils_main import save_files
 
 class CustomEnv(gym.Env, ABC):
     def __init__(self):
+        self.Controller = Controller()
         self.U_input = [U1, U2, U3, U4] = sp.symbols("U1:5", real=True)
         self.x_state = [
             u_velocity,
@@ -218,6 +219,7 @@ class CustomEnv(gym.Env, ABC):
 
     def find_next_state(self) -> list:
         current_t = self.Ts * self.counter
+        # self.control_input = self.Controller.Controller_model(self.current_states[0:16], current_t)
         self.current_states[0:16] = self.My_helicopter.RK45(
             current_t,
             self.current_states[0:16],
@@ -241,7 +243,7 @@ class CustomEnv(gym.Env, ABC):
         self.control_rewards[self.counter] = error
         self.integral_error = 0.1 * (0.99 * self.control_rewards[self.counter - 1] + 0.99 * self.integral_error)
         reward -= self.integral_error
-        reward += -self.min_reward / self.numTimeStep
+        reward += 300 / self.numTimeStep
         reward -= rew_cof[1] * sum(abs(self.control_input - self.all_control[self.counter - 1, :]))
         reward -= rew_cof[2] * np.linalg.norm(self.control_input, 2)
         self.all_rewards[self.counter] = reward
@@ -253,10 +255,11 @@ class CustomEnv(gym.Env, ABC):
                 self.diverge_list.append((tuple(self.observation_space_domain.keys())[i], self.observation[i]))
                 self.saver.diverge_save(tuple(self.observation_space_domain.keys())[i], self.observation[i])
                 self.diverge_counter += 1
-            if self.diverge_counter == 2000:
-                self.diverge_counter = 0
-                print((tuple(self.observation_space_domain.keys())[i], self.observation[i]))
-            self.jj = 1
+                if self.diverge_counter == 2000:
+                    self.diverge_counter = 0
+                    print((tuple(self.observation_space_domain.keys())[i], self.observation[i]))
+                self.jj = 1
+
         if self.jj == 1:
             return True
         if self.counter >= self.no_timesteps - 1:  # number of timesteps
@@ -303,7 +306,7 @@ class CustomEnv(gym.Env, ABC):
         reward = self.reward_function(self.observation)
         self.done = self.check_diverge()
         if self.jj == 1:
-            reward = self.min_reward
+            reward -= self.min_reward
         if self.done:
             self.done_jobs()
         self.counter += 1

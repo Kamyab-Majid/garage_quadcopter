@@ -16,8 +16,7 @@ from garage.trainer import Trainer
 import gym
 import envs
 
-
-@wrap_experiment
+@wrap_experiment(archive_launch_repo=False)
 def trpo_quadcopter(ctxt=None, seed=1):
     """Train TRPO with InvertedDoublePendulum-v2 environment.
 

@@ -1,6 +1,7 @@
 import csv
 import gym
 import envs
+from env.controller import Controller
 
 ENV_ID = "CustomEnv-v0"
 my_env = gym.make(ENV_ID)
