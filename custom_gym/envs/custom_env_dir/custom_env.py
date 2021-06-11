@@ -208,10 +208,10 @@ class CustomEnv(gym.Env, ABC):
         self.control_input[1] = un_act[2] * obs[9] + un_act[3] * obs[0] + un_act[4] * obs[4] + un_act[5] * obs[7]
         self.control_input[2] = un_act[6] * obs[10] + un_act[7] * obs[1] + un_act[8] * obs[3] + un_act[9] * obs[6]
         self.control_input[3] = un_act[10] * obs[5] + un_act[11] * obs[8]
-        self.control_input[0] = 0.1167 * self.control_input[0] + 0.2533
+        self.control_input[0] = 0.1167 * self.control_input[0] + 0.1
         self.control_input[1] = 0.03125 * self.control_input[1]
         self.control_input[2] = 0.02857 * self.control_input[2]
-        self.control_input[3] = 0.2227 * self.control_input[3] + 0.2531
+        self.control_input[3] = 0.2227 * self.control_input[3] + 0.18
 
         self.all_control[self.counter] = self.control_input = np.clip(
             self.control_input, self.low_control_input, self.high_control_input
@@ -243,7 +243,7 @@ class CustomEnv(gym.Env, ABC):
         self.control_rewards[self.counter] = error
         self.integral_error = 0.1 * (0.99 * self.control_rewards[self.counter - 1] + 0.99 * self.integral_error)
         reward -= self.integral_error
-        reward += 300 / self.numTimeStep
+        reward += 600 / self.numTimeStep
         reward -= rew_cof[1] * sum(abs(self.control_input - self.all_control[self.counter - 1, :]))
         reward -= rew_cof[2] * np.linalg.norm(self.control_input, 2)
         self.all_rewards[self.counter] = reward
