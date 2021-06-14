@@ -203,7 +203,8 @@ class CustomEnv(gym.Env, ABC):
         self.normilized_actions = current_action
         un_act = (current_action + 1) * (
             self.high_action - self.low_action
-        ) / 2 + self.low_action  # unnormalized_action
+        ) / 2 + self.low_action
+        self.all_actions[self.counter] = self.normilized_actions  # unnormalized_action
         self.control_input[0] = un_act[0] * obs[11] + un_act[1] * obs[2]
         self.control_input[1] = un_act[2] * obs[9] + un_act[3] * obs[0] + un_act[4] * obs[4] + un_act[5] * obs[7]
         self.control_input[2] = un_act[6] * obs[10] + un_act[7] * obs[1] + un_act[8] * obs[3] + un_act[9] * obs[6]
@@ -274,6 +275,7 @@ class CustomEnv(gym.Env, ABC):
         return False
 
     def done_jobs(self) -> None:
+        print(self.counter)
         counter = self.counter
         self.save_counter += 1
         current_total_reward = sum(self.all_rewards)
@@ -293,7 +295,6 @@ class CustomEnv(gym.Env, ABC):
                 self.all_rewards[0:ii],
                 self.control_rewards[0:ii],
                 self.header,
-                control_input=self.all_control[0:ii],
             )
 
     def step(self, current_action):

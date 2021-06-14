@@ -33,27 +33,28 @@ def trpo_quadcopter(ctxt=None, seed=1):
 
     trainer = Trainer(ctxt)
 
-    policy = GaussianMLPPolicy(
-        env.spec, hidden_sizes=(200, 200), hidden_nonlinearity=torch.relu, output_nonlinearity=torch.tanh
-    )
+    # policy = GaussianMLPPolicy(
+        # env.spec, hidden_sizes=(200, 200), hidden_nonlinearity=torch.relu, output_nonlinearity=torch.tanh
+    # )
 
-    value_function = GaussianMLPValueFunction(
-        env_spec=env.spec, hidden_sizes=(200, 200), hidden_nonlinearity=torch.relu, output_nonlinearity=torch.tanh
-    )
+    # value_function = GaussianMLPValueFunction(
+        # env_spec=env.spec, hidden_sizes=(200, 200), hidden_nonlinearity=torch.relu, output_nonlinearity=torch.tanh
+    # )
 
-    sampler = LocalSampler(agents=policy, envs=env, max_episode_length=env.spec.max_episode_length)
+    # sampler = LocalSampler(agents=policy, envs=env, max_episode_length=env.spec.max_episode_length)
 
-    algo = TRPO(
-        env_spec=env.spec,
-        policy=policy,
-        value_function=value_function,
-        sampler=sampler,
-        discount=0.995,
-        center_adv=False,
-    )
+    # algo = TRPO(
+        # env_spec=env.spec,
+    #     policy=policy,
+    #     value_function=value_function,
+    #     sampler=sampler,
+    #     discount=0.995,
+    #     center_adv=False,
+    # )
 
-    trainer.setup(algo, env)
-    trainer.train(n_epochs=100, batch_size=1024)
+    # trainer.setup(algo, env)
+    trainer.restore('data/local/experiment/trpo_quadcopter_10')
+    trainer.train(n_epochs=1000000, batch_size=2048)
 
 
 trpo_quadcopter(seed=1)
