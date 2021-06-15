@@ -1,4 +1,4 @@
-garage
-results
+garage/
+results/
 *.csv
-data
+data/
