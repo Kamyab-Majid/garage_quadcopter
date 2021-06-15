@@ -2,4 +2,4 @@ garage/
 results/
 *.csv
 data/
-
+MUJOCO_LOG.TXT

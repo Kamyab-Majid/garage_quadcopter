@@ -38,7 +38,7 @@ class CustomEnv(gym.Env, ABC):
         self.velocity_range = velocity_range = (-200, 200)
         self.ang_velocity_range = ang_velocity_range = (-100, 100)
         self.ang_p_velocity_range = ang_p_velocity_range = (-100, 100)
-        self.Ti, self.Ts, self.Tf = 0, 0.03, 2
+        self.Ti, self.Ts, self.Tf = 0, 0.03, 4
         self.observation_space_domain = {
             "u_velocity": velocity_range,
             "v_velocity": velocity_range,
@@ -67,20 +67,20 @@ class CustomEnv(gym.Env, ABC):
         self.high_obs_space = np.array(tuple(zip(*self.observation_space_domain.values()))[1], dtype=np.float32) * 0 + 1
         self.observation_space = spaces.Box(low=self.low_obs_space, high=self.high_obs_space, dtype=np.float32)
         self.default_act_range = default_act_range = (-0.3, 0.3)
-
+        def_action = (-2,2)
         self.action_space_domain = {
-            "col_z": (-1, 1),
-            "col_w": (-1, 1),
-            "lon_x": (-1, 1),
-            "lon_u": (-1, 1),
-            "lon_q": (-1, 1),
-            "lon_eul_1": (-1, 1),
-            "lat_y": (-1, 1),
-            "lat_v": (-1, 1),
-            "lat_p": (-1, 1),
-            "lat_eul_0": (-1, 1),
-            "ped_r": (-1, 1),
-            "ped_eul_3": (-1, 1),
+            "col_z": def_action,
+            "col_w": def_action,
+            "lon_x": def_action,
+            "lon_u": def_action,
+            "lon_q": def_action,
+            "lon_eul_1": def_action,
+            "lat_y": def_action,
+            "lat_v": def_action,
+            "lat_p": def_action,
+            "lat_eul_0": def_action,
+            "ped_r": def_action,
+            "ped_eul_3": def_action,
         }
         self.low_action = np.array(tuple(zip(*self.action_space_domain.values()))[0], dtype=np.float32)
         self.high_action = np.array(tuple(zip(*self.action_space_domain.values()))[1], dtype=np.float32)
@@ -168,26 +168,27 @@ class CustomEnv(gym.Env, ABC):
         self.jj = 0
         self.counter = 0
         # Yd, Ydotd, Ydotdotd, Y, Ydot = self.My_controller.Yposition(0, self.current_states)
-        self.initial_states = np.array((
-            3.70e-04,  # 0u
-            1.15e-02,  # 1v
-            4.36e-04,  # 2w
-            -5.08e-03,  # 3p
-            2.04e-04,  # 4q
-            2.66e-05,  # 5r
-            -1.08e-01,  # 6fi
-            1.01e-04,  # 7theta
-            -1.03e-03,  # 8si
-            -4.01e-05,  # 9x
-            -5.26e-02,  # 10y
-            -2.94e-04,  # 11z
-            -4.36e-06,  # 12a
-            -9.77e-07,  # 13b
-            -5.66e-05,  # 14c
-            7.81e-04,
-          ))  # 15d
-        self.current_states = \
-            self.initial_states * (1 + (np.random.rand(16) * 0.02 - 0.01))
+        self.initial_states = np.array(
+            (
+                3.70e-04,  # 0u
+                1.15e-02,  # 1v
+                4.36e-04,  # 2w
+                -5.08e-03,  # 3p
+                2.04e-04,  # 4q
+                2.66e-05,  # 5r
+                -1.08e-01,  # 6fi
+                1.01e-04,  # 7theta
+                -1.03e-03,  # 8si
+                -4.01e-05,  # 9x
+                -5.26e-02,  # 10y
+                -2.94e-04,  # 11z
+                -4.36e-06,  # 12a
+                -9.77e-07,  # 13b
+                -5.66e-05,  # 14c
+                7.81e-04,
+            )
+        )  # 15d
+        self.current_states = self.initial_states * (1 + (np.random.rand(16) * 0.05 - 0.01))
         # [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
         self.all_obs[self.counter] = self.observation = np.append(self.current_states, self.control_input)
         self.done = False
@@ -202,9 +203,7 @@ class CustomEnv(gym.Env, ABC):
     def action_wrapper(self, current_action, obs) -> np.array:
         current_action = np.clip(current_action, -1, 1)
         self.normilized_actions = current_action
-        un_act = (current_action + 1) * (
-            self.high_action - self.low_action
-        ) / 2 + self.low_action
+        un_act = (current_action + 1) * (self.high_action - self.low_action) / 2 + self.low_action
         self.all_actions[self.counter] = self.normilized_actions  # unnormalized_action
         self.control_input[0] = un_act[0] * obs[11] + un_act[1] * obs[2]
         self.control_input[1] = un_act[2] * obs[9] + un_act[3] * obs[0] + un_act[4] * obs[4] + un_act[5] * obs[7]
@@ -240,7 +239,7 @@ class CustomEnv(gym.Env, ABC):
         # add reward slope to the reward
         # TODO: normalizing reward
         # TODO: adding reward gap
-        error = -rew_cof[0] * np.linalg.norm(observation[0:12].reshape(12)-self.initial_states[0:12].reshape(12), 2)
+        error = -rew_cof[0] * np.linalg.norm(observation[0:12].reshape(12) - self.initial_states[0:12].reshape(12), 2)
         reward = error.copy()
         self.control_rewards[self.counter] = error
         self.integral_error = 0.1 * (0.99 * self.control_rewards[self.counter - 1] + 0.99 * self.integral_error)
