@@ -41,7 +41,7 @@ class save_files:
         self._save_init(self.path_diverge)
         self.index = 1
         self.index_diverge = 1
-        fields = ['counter', 'step', 'reward']
+        fields = ["counter", "step", "reward"]
         with open(f"{self.path_step_reward}/reward_step{self.date}.csv", "a") as f:
             writer = csv.writer(f)
             writer.writerow(fields)
@@ -51,14 +51,32 @@ class save_files:
         if not os.path.exists(self.path):
             os.makedirs(self.path)
 
-    def best_reward_save(self, all_t, all_actions, all_obs, all_rewards, control_rewards, header, control_input=np.array((0., 0., 0., 0.))):
+    def best_reward_save(
+        self,
+        all_t,
+        all_actions,
+        all_obs,
+        all_rewards,
+        control_rewards,
+        header,
+        control_input=np.array((0.0, 0.0, 0.0, 0.0)),
+    ):
         date = datetime.now().strftime("%Y_%m_%d-%I_%M_%S_%p")
-        np.savetxt(
-            f"{self.path_best_reward}/best_rewards{date}.csv",
-            np.c_[all_t, all_actions, all_obs, all_rewards, control_input, control_rewards],
-            delimiter=",",
-            header=header,
-        )
+        if any(control_input):
+
+            np.savetxt(
+                f"{self.path_best_reward}/best_rewards{date}.csv",
+                np.c_[all_t, all_actions, all_obs, all_rewards, control_input, control_rewards],
+                delimiter=",",
+                header=header,
+            )
+        else:
+            np.savetxt(
+                f"{self.path_best_reward}/best_rewards{date}.csv",
+                np.c_[all_t, all_actions, all_obs, all_rewards, control_rewards],
+                delimiter=",",
+                header=header,
+            )
 
     def reward_step_save(self, best_rew, longest_step, curr_tot_rew, curr_step):
         print(f"best reward: {best_rew}, longest step: {longest_step}, reward: {curr_tot_rew}, step: {curr_step} ")

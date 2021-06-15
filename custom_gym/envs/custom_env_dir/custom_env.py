@@ -168,25 +168,26 @@ class CustomEnv(gym.Env, ABC):
         self.jj = 0
         self.counter = 0
         # Yd, Ydotd, Ydotdotd, Y, Ydot = self.My_controller.Yposition(0, self.current_states)
-        # self.initial_states = [
-        #     3.70e-04,  # 0u
-        #     1.15e-02,  # 1v
-        #     4.36e-04,  # 2w
-        #     -5.08e-03,  # 3p
-        #     2.04e-04,  # 4q
-        #     2.66e-05,  # 5r
-        #     -1.08e-01,  # 6fi
-        #     1.01e-04,  # 7theta
-        #     -1.03e-03,  # 8si
-        #     -4.01e-05,  # 9x
-        #     -5.26e-02,  # 10y
-        #     -2.94e-04,  # 11z
-        #     -4.36e-06,  # 12a
-        #     -9.77e-07,  # 13b
-        #     -5.66e-05,  # 14c
-        #     7.81e-04,
-        # ]  # 15d
-        self.current_states = self.initial_states = list((np.random.rand(16) * 0.02 - 0.01))
+        self.initial_states = np.array((
+            3.70e-04,  # 0u
+            1.15e-02,  # 1v
+            4.36e-04,  # 2w
+            -5.08e-03,  # 3p
+            2.04e-04,  # 4q
+            2.66e-05,  # 5r
+            -1.08e-01,  # 6fi
+            1.01e-04,  # 7theta
+            -1.03e-03,  # 8si
+            -4.01e-05,  # 9x
+            -5.26e-02,  # 10y
+            -2.94e-04,  # 11z
+            -4.36e-06,  # 12a
+            -9.77e-07,  # 13b
+            -5.66e-05,  # 14c
+            7.81e-04,
+          ))  # 15d
+        self.current_states = \
+            self.initial_states * (1 + (np.random.rand(16) * 0.02 - 0.01))
         # [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
         self.all_obs[self.counter] = self.observation = np.append(self.current_states, self.control_input)
         self.done = False
@@ -239,7 +240,7 @@ class CustomEnv(gym.Env, ABC):
         # add reward slope to the reward
         # TODO: normalizing reward
         # TODO: adding reward gap
-        error = -rew_cof[0] * np.linalg.norm(observation[0:12].reshape(12), 2)
+        error = -rew_cof[0] * np.linalg.norm(observation[0:12].reshape(12)-self.initial_states[0:12].reshape(12), 2)
         reward = error.copy()
         self.control_rewards[self.counter] = error
         self.integral_error = 0.1 * (0.99 * self.control_rewards[self.counter - 1] + 0.99 * self.integral_error)
@@ -275,7 +276,6 @@ class CustomEnv(gym.Env, ABC):
         return False
 
     def done_jobs(self) -> None:
-        print(self.counter)
         counter = self.counter
         self.save_counter += 1
         current_total_reward = sum(self.all_rewards)
