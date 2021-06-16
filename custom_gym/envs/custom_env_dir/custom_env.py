@@ -6,6 +6,7 @@ from gym import spaces
 from env.Helicopter import Helicopter
 from env.controller import Controller
 from utils_main import save_files
+import random
 
 
 class CustomEnv(gym.Env, ABC):
@@ -34,7 +35,7 @@ class CustomEnv(gym.Env, ABC):
         self.My_controller = Controller()
         self.t = sp.symbols("t")
         self.symbolic_states_math, jacobian = self.My_helicopter.lambd_eq_maker(self.t, self.x_state, self.U_input)
-        self.default_range = default_range = (-100, 100)
+        self.default_range = default_range = (-0.1, 0.1)
         self.velocity_range = velocity_range = (-200, 200)
         self.ang_velocity_range = ang_velocity_range = (-100, 100)
         self.ang_p_velocity_range = ang_p_velocity_range = (-100, 100)
@@ -46,12 +47,12 @@ class CustomEnv(gym.Env, ABC):
             "p_angle": ang_p_velocity_range,
             "q_angle": ang_velocity_range,
             "r_angle": ang_velocity_range,
-            "fi_angle": velocity_range,
-            "theta_angle": velocity_range,
-            "si_angle": velocity_range,
-            "xI": velocity_range,
-            "yI": velocity_range,
-            "zI": velocity_range,
+            "fi_angle": default_range,
+            "theta_angle": default_range,
+            "si_angle": default_range,
+            "xI": default_range,
+            "yI": default_range,
+            "zI": default_range,
             "a_flapping": velocity_range,
             "b_flapping": velocity_range,
             "c_flapping": velocity_range,
@@ -67,7 +68,7 @@ class CustomEnv(gym.Env, ABC):
         self.high_obs_space = np.array(tuple(zip(*self.observation_space_domain.values()))[1], dtype=np.float32) * 0 + 1
         self.observation_space = spaces.Box(low=self.low_obs_space, high=self.high_obs_space, dtype=np.float32)
         self.default_act_range = default_act_range = (-0.3, 0.3)
-        def_action = (-2,2)
+        def_action = (-2, 2)
         self.action_space_domain = {
             "col_z": def_action,
             "col_w": def_action,
@@ -155,19 +156,6 @@ class CustomEnv(gym.Env, ABC):
         self.high_control_input = [0.5, 0.1, 0.1, 0.5]
         self.cont_inp_dom = {"col": (-2.1, 2, 1), "lat": (-3.2, 3.2), "lon": (-3.5, 3.5), "ped": (-1.1, 1.1)}
         self.cont_str = list(self.cont_inp_dom.keys())
-
-    def reset(self):
-        # initialization
-        self.t = 0
-        self.all_obs = np.zeros((self.no_timesteps, len(self.high_obs_space)))
-        self.all_actions = np.zeros((self.no_timesteps, len(self.high_action_space)))
-        self.all_control = np.zeros((self.no_timesteps, 4))
-        self.all_rewards = np.zeros((self.no_timesteps, 1))
-        self.control_rewards = np.zeros((self.no_timesteps, 1))
-        self.control_input = np.array((0, 0, 0, 0), dtype=np.float32)
-        self.jj = 0
-        self.counter = 0
-        # Yd, Ydotd, Ydotdotd, Y, Ydot = self.My_controller.Yposition(0, self.current_states)
         self.initial_states = np.array(
             (
                 3.70e-04,  # 0u
@@ -188,7 +176,23 @@ class CustomEnv(gym.Env, ABC):
                 7.81e-04,
             )
         )  # 15d
-        self.current_states = self.initial_states * (1 + (np.random.rand(16) * 0.05 - 0.01))
+
+    def reset(self):
+        # initialization
+        self.t = 0
+        self.all_obs = np.zeros((self.no_timesteps, len(self.high_obs_space)))
+        self.all_actions = np.zeros((self.no_timesteps, len(self.high_action_space)))
+        self.all_control = np.zeros((self.no_timesteps, 4))
+        self.all_rewards = np.zeros((self.no_timesteps, 1))
+        self.control_rewards = np.zeros((self.no_timesteps, 1))
+        self.control_input = np.array((0, 0, 0, 0), dtype=np.float32)
+        self.jj = 0
+        self.counter = 0
+        # Yd, Ydotd, Ydotdotd, Y, Ydot = self.My_controller.Yposition(0, self.current_states)
+        a = np.array([(-1) ** random.randint(0, 1) for i in range(16)])
+        s = np.random.uniform(0.1, 0.2, 16)
+
+        self.current_states = self.initial_states * (1 + s * a)
         # [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
         self.all_obs[self.counter] = self.observation = np.append(self.current_states, self.control_input)
         self.done = False

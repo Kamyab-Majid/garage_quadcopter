@@ -3,3 +3,4 @@ results/
 *.csv
 data/
 MUJOCO_LOG.TXT
+data - Copy/
