@@ -1,5 +1,6 @@
 import sympy as sp
 import numpy as np
+from env import controller
 
 
 class Helicopter:
@@ -65,6 +66,7 @@ class Helicopter:
         self.vh = sp.sqrt((self.mass) * 9.8 / (2 * self.rho * 3.1415 * self.Rmr ** 2))
         self.vhtr = -sp.sqrt(self.fQ0 / (2 * self.rho * 3.1415 * self.Rtr ** 2))
         self.OMEGAtr = self.ntr * self.OMEGA
+        self.omega_r = controller.Controller()
         self.sigmamr = self.N * self.c_constant / (3.1415 * self.Rmr)
         self.sigmatr = self.N * self.ctr / (3.1415 * self.Rtr)
         self.A = np.array([0, 2 / 9, 1 / 3, 3 / 4, 1, 5 / 6])
@@ -83,6 +85,7 @@ class Helicopter:
         self.CT = np.array([-1 / 150, 0, 3 / 100, -16 / 75, -1 / 20, 6 / 25])
 
     def RK45(self, x0, y0, ydot, h, u_input, trunc_error=False) -> np.array:
+        # u_input = + np.array(self.omega_r.Controller_model(y0, 0)) * 2 / 3 + u_input / 3
         k1 = h * np.array(ydot(y0, x0 + self.A[0] * h, *u_input), dtype=float)
         k2 = h * np.array(ydot(y0 + self.B[1, 0] * k1, x0 + self.A[1] * h, *u_input), dtype=float)
         k3 = h * np.array(ydot(y0 + self.B[2, 0] * k1 + self.B[2, 1] * k2, x0 + self.A[2] * h, *u_input), dtype=float)
