@@ -1,6 +1,9 @@
 garage/
 results/
 *.csv
+*.ipynb
 data/
 MUJOCO_LOG.TXT
 data - Copy/
+temporary.py
+temporary_jup.ipynb

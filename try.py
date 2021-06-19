@@ -2,6 +2,7 @@ import csv
 import gym
 import envs
 from env.controller import Controller
+import numpy as np 
 
 my_contr = Controller()
 ENV_ID = "CustomEnv-v0"
@@ -30,8 +31,8 @@ my_env.constant_dict = {
 while not done:
     current_action = my_contr.Controller_model(my_env.current_states, my_env.Ts * my_env.counter)
     # print(current_action[1], current_action[2])
-    # my_env.current_states, b, done, _ = my_env.step((0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
-    my_env.current_states, b, done, _ = my_env.step([current_action[0],0.1,current_action[2],current_action[3]])
+    my_env.current_states, b, done, _ = my_env.step(np.array((0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0), dtype=np.float64))
+    # my_env.current_states, b, done, _ = my_env.step([current_action[0], 0.1, current_action[2], current_action[3]])
 
     # print(my_env.current_states)
 

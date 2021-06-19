@@ -19,5 +19,6 @@ while steps < max_steps and not done:
     obs, rew, done, _ = env.step(policy.get_action(obs)[0])
     # env.render()  # Render the environment to see what's going on (optional)
     steps += 1
+    tot_reward += rew
 
 env.close()

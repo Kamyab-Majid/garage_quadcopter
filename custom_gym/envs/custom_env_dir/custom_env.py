@@ -35,7 +35,7 @@ class CustomEnv(gym.Env, ABC):
         self.My_controller = Controller()
         self.t = sp.symbols("t")
         self.symbolic_states_math, jacobian = self.My_helicopter.lambd_eq_maker(self.t, self.x_state, self.U_input)
-        self.default_range = default_range = (-0.1, 0.1)
+        self.default_range = default_range = (-10, 10)
         self.velocity_range = velocity_range = (-200, 200)
         self.ang_velocity_range = ang_velocity_range = (-100, 100)
         self.ang_p_velocity_range = ang_p_velocity_range = (-100, 100)
@@ -47,9 +47,9 @@ class CustomEnv(gym.Env, ABC):
             "p_angle": ang_p_velocity_range,
             "q_angle": ang_velocity_range,
             "r_angle": ang_velocity_range,
-            "fi_angle": default_range,
-            "theta_angle": default_range,
-            "si_angle": default_range,
+            "fi_angle": (-0.3, 0.3),
+            "theta_angle": (-0.3, 0.3),
+            "si_angle": (-0.3, 0.3),
             "xI": default_range,
             "yI": default_range,
             "zI": default_range,
@@ -253,7 +253,7 @@ class CustomEnv(gym.Env, ABC):
         self.control_rewards[self.counter] = error
         self.integral_error = 0.1 * (0.99 * self.control_rewards[self.counter - 1] + 0.99 * self.integral_error)
         reward -= self.integral_error
-        reward += 600 / self.numTimeStep
+        reward += 1200 / self.numTimeStep
         reward -= rew_cof[1] * sum(abs(self.control_input - self.all_control[self.counter - 1, :]))
         reward -= rew_cof[2] * np.linalg.norm(self.control_input, 2)
         self.all_rewards[self.counter] = reward

@@ -16,8 +16,9 @@ from garage.trainer import Trainer
 import gym
 import envs
 
+
 @wrap_experiment(archive_launch_repo=False)
-def trpo_quadcopter(ctxt=None, seed=1):
+def trpo_quadcopter(ctxt=None, seed=1, fake_env=None, env=None):
     """Train TRPO with InvertedDoublePendulum-v2 environment.
 
     Args:
@@ -28,8 +29,6 @@ def trpo_quadcopter(ctxt=None, seed=1):
 
     """
     set_seed(seed)
-    fake_env = gym.make("CustomEnv-v0")
-    env = GymEnv("CustomEnv-v0", max_episode_length=fake_env.numTimeStep)
 
     trainer = Trainer(ctxt)
 
@@ -38,7 +37,10 @@ def trpo_quadcopter(ctxt=None, seed=1):
     )
 
     value_function = GaussianMLPValueFunction(
-        env_spec=env.spec, hidden_sizes=(400, 200, 100, 50), hidden_nonlinearity=torch.relu, output_nonlinearity=torch.tanh
+        env_spec=env.spec,
+        hidden_sizes=(400, 200, 100, 50),
+        hidden_nonlinearity=torch.relu,
+        output_nonlinearity=torch.tanh,
     )
 
     sampler = LocalSampler(agents=policy, envs=env, max_episode_length=env.spec.max_episode_length)
@@ -50,12 +52,14 @@ def trpo_quadcopter(ctxt=None, seed=1):
         sampler=sampler,
         discount=0.995,
         center_adv=False,
-        entropy_method='regularized'
+        entropy_method="regularized",
     )
 
     trainer.setup(algo, env)
-#     trainer.restore('data/local/experiment/trpo_quadcopter_2')
+    #     trainer.restore('data/local/experiment/trpo_quadcopter_2')
     trainer.train(n_epochs=1000000, batch_size=2048)
 
 
-trpo_quadcopter(seed=1)
+fake_env = gym.make("CustomEnv-v0")
+env = GymEnv("CustomEnv-v0", max_episode_length=fake_env.numTimeStep)
+trpo_quadcopter(seed=1, fake_env=fake_env, env=env)
