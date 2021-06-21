@@ -1,0 +1,1 @@
+{'batch_size': 128, 'n_steps': 512, 'gamma': 0.999, 'arch_size_policy': 400, 'arch_hid_lay_policy': 2, 'arch_hid_lay_value': 2, 'arch_size_value': 800, 'max_constraint_value': 0.1, 'gae_lambda': 1.0, 'net_arch': 'no_entropy', 'center_adv': True}. Best is trial 943 with value: 5201.7875609855455.

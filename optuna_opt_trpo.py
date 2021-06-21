@@ -20,9 +20,9 @@ import shutil
 from garage.experiment import Snapshotter
 import tensorflow as tf  # optional, only for TensorFlow as we need a tf.Session
 from garage.torch.optimizers import ConjugateGradientOptimizer, OptimizerWrapper
+import numpy as np
 
-
-@wrap_experiment(archive_launch_repo=False)
+@wrap_experiment(archive_launch_repo=False, snapshot_mode='none')
 def trpo_quadcopter(
     ctxt=None,
     seed=1,
@@ -79,7 +79,8 @@ def trpo_quadcopter(
 
     trainer.setup(algo, env)
     #     trainer.restore('data/local/experiment/trpo_quadcopter_2')
-    trainer.train(n_epochs=100_000, batch_size=batch_size)
+    trainer.train(n_epochs=10, batch_size=batch_size)
+    return policy
 
 
 def objective(trial):
@@ -95,7 +96,8 @@ def objective(trial):
     entropy_method = trial.suggest_categorical("net_arch", ["regularized", "no_entropy"])
     center_adv = trial.suggest_categorical("center_adv", [False, True])
     env = GymEnv("CustomEnv-v0", max_episode_length=n_steps)
-    trpo_quadcopter(
+    try_env = gym.make("CustomEnv-v0")
+    policy = trpo_quadcopter(
         seed=1,
         env=env,
         batch_size=batch_size,
@@ -111,19 +113,19 @@ def objective(trial):
         entropy_method=entropy_method
 
     )
-    snapshotter = Snapshotter()
-    with tf.compat.v1.Session():  # optional, only for TensorFlow
-        data = snapshotter.load("data/local/experiment/trpo_quadcopter")
-    policy = data["algo"].policy
+#     snapshotter = Snapshotter()
+#     with tf.compat.v1.Session():  # optional, only for TensorFlow
+#         data = snapshotter.load("data/local/experiment/trpo_quadcopter")
+#     policy = data["algo"].policy
     # You can also access other components of the experiment
     tot_reward = 0
     steps, max_steps = 0, 500000
     for i in range(10):
         done = False
-        obs = env.reset()  # The initial observation
+        obs = try_env.reset()  # The initial observation
         policy.reset()
         while steps < max_steps and not done:
-            obs, rew, done, _ = env.step(policy.get_action(obs)[0])
+            obs, rew, done, _ = try_env.step(policy.get_action(obs)[0])
             # env.render()  # Render the environment to see what's going on (optional)
             steps += 1
             tot_reward += rew
