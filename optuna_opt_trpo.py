@@ -8,7 +8,7 @@ import torch
 from garage import wrap_experiment
 from garage.envs import GymEnv
 from garage.experiment.deterministic import set_seed
-from garage.sampler import LocalSampler
+from garage.sampler import RaySampler
 from garage.torch.algos import TRPO
 from garage.torch.policies import GaussianMLPPolicy
 from garage.torch.value_functions import GaussianMLPValueFunction
@@ -22,7 +22,8 @@ import tensorflow as tf  # optional, only for TensorFlow as we need a tf.Session
 from garage.torch.optimizers import ConjugateGradientOptimizer, OptimizerWrapper
 import numpy as np
 
-@wrap_experiment(archive_launch_repo=False, snapshot_mode='none')
+
+@wrap_experiment(archive_launch_repo=False, snapshot_mode="none")
 def trpo_quadcopter(
     ctxt=None,
     seed=1,
@@ -37,9 +38,9 @@ def trpo_quadcopter(
     arch_hid_lay_value=2,
     center_adv=False,
     gae_lambda=0.98,
-    entropy_method='no_entropy'
+    entropy_method="no_entropy",
 ):
-    
+
     dir_path = "data"
     try:
         shutil.rmtree(dir_path)
@@ -61,8 +62,8 @@ def trpo_quadcopter(
         output_nonlinearity=torch.tanh,
     )
 
-    sampler = LocalSampler(agents=policy, envs=env, max_episode_length=n_steps)
-
+    #     sampler = LocalSampler(agents=policy, envs=env, max_episode_length=n_steps)
+    sampler = RaySampler(agents=policy, envs=env, max_episode_length=env.spec.max_episode_length)
     algo = TRPO(
         env_spec=env.spec,
         policy=policy,
@@ -79,7 +80,7 @@ def trpo_quadcopter(
 
     trainer.setup(algo, env)
     #     trainer.restore('data/local/experiment/trpo_quadcopter_2')
-    trainer.train(n_epochs=10, batch_size=batch_size)
+    trainer.train(n_epochs=8000 / batch_size, batch_size=batch_size)
     return policy
 
 
@@ -110,13 +111,12 @@ def objective(trial):
         arch_size_value=arch_size_value,
         arch_hid_lay_value=arch_hid_lay_value,
         center_adv=center_adv,
-        entropy_method=entropy_method
-
+        entropy_method=entropy_method,
     )
-#     snapshotter = Snapshotter()
-#     with tf.compat.v1.Session():  # optional, only for TensorFlow
-#         data = snapshotter.load("data/local/experiment/trpo_quadcopter")
-#     policy = data["algo"].policy
+    #     snapshotter = Snapshotter()
+    #     with tf.compat.v1.Session():  # optional, only for TensorFlow
+    #         data = snapshotter.load("data/local/experiment/trpo_quadcopter")
+    #     policy = data["algo"].policy
     # You can also access other components of the experiment
     tot_reward = 0
     steps, max_steps = 0, 500000
@@ -138,6 +138,6 @@ def objective(trial):
 # fake_env = gym.make("CustomEnv-v0")
 # env = GymEnv("CustomEnv-v0", max_episode_length=fake_env.numTimeStep)
 study = optuna.create_study(direction="maximize")
-study.optimize(objective, n_trials=1)
-study.trials_dataframe().to_csv(path_or_buf='optuna_results.csv')
+study.optimize(objective, n_trials=1000)
+study.trials_dataframe().to_csv(path_or_buf="optuna_results.csv")
 # trpo_quadcopter(seed=1, fake_env=fake_env, env=env)

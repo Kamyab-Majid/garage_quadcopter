@@ -39,7 +39,7 @@ def sac_half_cheetah_batch(ctxt=None, seed=1):
         env_spec=env.spec,
         hidden_sizes=[256, 256],
         hidden_nonlinearity=nn.ReLU,
-        output_nonlinearity=None,
+        output_nonlinearity=nn.Tanh,
         min_std=np.exp(-20.0),
         max_std=np.exp(2.0),
     )

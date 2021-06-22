@@ -199,9 +199,14 @@ class CustomEnv(gym.Env, ABC):
 
         self.current_states = self.initial_states * (1 + s * a)
         # [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        random_indices = np.random.choice(12, size=1, replace=False)
+        self.current_states[random_indices] = self.current_states[random_indices] + np.random.uniform(0.1, 0.2, 1) * (
+            -1
+        ) ** random.randint(0, 1)
         self.all_obs[self.counter] = self.observation = np.concatenate(
             (self.current_states, self.control_input), axis=0
         )
+
         self.done = False
         self.integral_error = 0
         for iii in range(4):
