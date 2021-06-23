@@ -9,7 +9,7 @@ from garage import wrap_experiment
 from garage.envs import GymEnv, normalize
 from garage.experiment import deterministic
 from garage.replay_buffer import PathBuffer
-from garage.sampler import FragmentWorker, LocalSampler
+from garage.sampler import FragmentWorker, RaySampler
 from garage.torch import set_gpu_mode
 from garage.torch.algos import SAC
 from garage.torch.policies import TanhGaussianMLPPolicy
@@ -64,7 +64,7 @@ def sac_helicopter(
 
     replay_buffer = PathBuffer(capacity_in_transitions=int(buffer_size))
 
-    sampler = LocalSampler(
+    sampler = RaySampler(
         agents=policy, envs=env, max_episode_length=env.spec.max_episode_length, worker_class=FragmentWorker
     )
 
@@ -91,7 +91,7 @@ def sac_helicopter(
         set_gpu_mode(False)
     sac.to()
     trainer.setup(algo=sac, env=env)
-    trainer.train(n_epochs=1, batch_size=batch_size)
+    trainer.train(n_epochs=10, batch_size=batch_size)
     return policy
 
 
@@ -100,12 +100,13 @@ def objective(trial):
     batch_size = trial.suggest_categorical("batch_size", [16, 32, 64, 128, 256, 512, 1024, 2048])
     buffer_size = trial.suggest_categorical("buffer_size", [int(1e4), int(1e5), int(1e6), int(1e7)])
     min_buffer_size = trial.suggest_categorical("learning_starts", [0, 1000, 10000, 20000, 200000])
-    train_freq = trial.suggest_categorical("train_freq", [1, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048])
+    train_freq = trial.suggest_categorical("train_freq", [1, 4, 8, 16])
     min_std = trial.suggest_categorical("min_std", [-1, -5, -10, -20, -40])
     max_std = trial.suggest_categorical("max_std", [-1, 5, 10, 20, 40])
-    tau = trial.suggest_categorical("tau", [0.001, 0.005, 0.01, 0.02, 0.05, 0.08])
+    tau = trial.suggest_categorical("tau", [0.001, 0.005, 0.01, 0.02, 0.05, 0.08, 0.1, 0.2])
     net_arch = trial.suggest_categorical("net_arch", ["small", "medium", "big", "verybig"])
     n_steps = trial.suggest_categorical("n_steps", [8, 16, 32, 64, 128, 256, 512, 1024, 2048])
+    gradient_steps_per_itr = trial.suggest_categorical("gradient_steps_per_itr", [1, 5, 10])
     net_arch = {"small": [256, 256], "medium": [400, 300], "big": [256, 256, 256], "verybig": [512, 512, 512]}[net_arch]
     env = GymEnv("CustomEnv-v0", max_episode_length=n_steps)
     try_env = gym.make("CustomEnv-v0")
@@ -113,7 +114,7 @@ def objective(trial):
     policy = sac_helicopter(
         seed=521,
         gamma=gamma,
-        gradient_steps_per_itr=n_steps,
+        gradient_steps_per_itr=gradient_steps_per_itr,
         max_episode_length=100000,
         batch_size=batch_size,
         net_arch=net_arch,

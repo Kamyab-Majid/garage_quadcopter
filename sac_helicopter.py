@@ -9,7 +9,7 @@ from garage import wrap_experiment
 from garage.envs import GymEnv, normalize
 from garage.experiment import deterministic
 from garage.replay_buffer import PathBuffer
-from garage.sampler import FragmentWorker, LocalSampler
+from garage.sampler import FragmentWorker, RaySampler
 from garage.torch import set_gpu_mode
 from garage.torch.algos import SAC
 from garage.torch.policies import TanhGaussianMLPPolicy
@@ -50,7 +50,7 @@ def sac_half_cheetah_batch(ctxt=None, seed=1):
 
     replay_buffer = PathBuffer(capacity_in_transitions=int(1e6))
 
-    sampler = LocalSampler(
+    sampler = RaySampler(
         agents=policy, envs=env, max_episode_length=env.spec.max_episode_length, worker_class=FragmentWorker
     )
 
@@ -77,7 +77,7 @@ def sac_half_cheetah_batch(ctxt=None, seed=1):
         set_gpu_mode(False)
     sac.to()
     trainer.setup(algo=sac, env=env)
-    trainer.train(n_epochs=1000, batch_size=1000)
+    trainer.train(n_epochs=1, batch_size=10)
 
 
 s = np.random.randint(0, 1000)

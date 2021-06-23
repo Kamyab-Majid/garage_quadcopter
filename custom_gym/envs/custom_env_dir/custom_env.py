@@ -1,5 +1,6 @@
 import sympy as sp
 import numpy as np
+from numpy import concatenate as concat
 from abc import ABC
 import gym
 from gym import spaces
@@ -30,7 +31,10 @@ class CustomEnv(gym.Env, ABC):
             b_flapping,
             c_flapping,
             d_flapping,
-        ] = sp.symbols("x1:17", real=True)
+            uwind,
+            vwind,
+            wwind,
+        ] = sp.symbols("x1:20", real=True)
         self.My_helicopter = Helicopter()
         self.My_controller = Controller()
         self.t = sp.symbols("t")
@@ -104,13 +108,14 @@ class CustomEnv(gym.Env, ABC):
             "time, "
             + act_header
             + ", "
-            + obs_header
-            + ", reward"
-            + "deltacol,"
-            + "deltalat,"
-            + "deltalon,"
-            + "deltaped,"
-            + ", control reward"
+            + obs_header[0:12]
+            + ","
+            + "uwind,"
+            + "vwind,"
+            + "wwind,"
+            + obs_header[13:17]
+            + "reward,"
+            + "control_reward"
         )
         self.saver = save_files()
         self.reward_array = np.array((0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0), dtype=np.float32)
@@ -185,7 +190,7 @@ class CustomEnv(gym.Env, ABC):
     def reset(self):
         # initialization
         self.t = 0
-        self.all_obs = np.zeros((self.no_timesteps, len(self.high_obs_space)))
+        self.all_obs = np.zeros((self.no_timesteps, len(self.high_obs_space) + 3))
         self.all_actions = np.zeros((self.no_timesteps, len(self.high_action_space)))
         self.all_control = np.zeros((self.no_timesteps, 4))
         self.all_rewards = np.zeros((self.no_timesteps, 1))
@@ -197,23 +202,17 @@ class CustomEnv(gym.Env, ABC):
         a = np.array([(-1) ** random.randint(0, 1) for i in range(16)])
         s = np.random.uniform(0.1, 0.2, 16)
 
-        self.current_states = self.initial_states * (1 + s * a)
+        # self.current_states = self.initial_states  # * (1 + s * a)
         # [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-        random_indices = np.random.choice(12, size=1, replace=False)
-        self.current_states[random_indices] = self.current_states[random_indices] + np.random.uniform(0.1, 0.2, 1) * (
-            -1
-        ) ** random.randint(0, 1)
-        self.all_obs[self.counter] = self.observation = np.concatenate(
-            (self.current_states, self.control_input), axis=0
-        )
+        ran_ind = np.random.choice(12, size=1, replace=False)
+        # self.current_states[ran_ind] = self.current_states[ran_ind]  # + np.random.uniform(0.1, 0.2, 1) * (
+        # -1) ** random.randint(0, 1)
+        self.wind = (-1) ** np.random.choice([0, 1], 3) * 0.1 + 0.025 * (np.random.random(3) - 0.5)
+        self.current_states = concat((self.initial_states, self.wind), axis=0)  # * (1 + s * a)
 
+        self.observation = self.observation_function()
         self.done = False
         self.integral_error = 0
-        for iii in range(4):
-            current_range = self.observation_space_domain[self.states_str[iii]]
-            self.observation[iii] = (
-                2 * (self.observation[iii] - current_range[0]) / (current_range[1] - current_range[0]) - 1
-            )
         return self.observation
 
     def action_wrapper(self, current_action, obs) -> np.array:
@@ -235,19 +234,26 @@ class CustomEnv(gym.Env, ABC):
     def find_next_state(self) -> list:
         current_t = self.Ts * self.counter
         # self.control_input = self.Controller.Controller_model(self.current_states[0:16], current_t)
-        self.current_states[0:16] = self.My_helicopter.RK45(
+        self.current_states[0:19] = self.My_helicopter.RK45(
             current_t,
-            self.current_states[0:16],
+            self.current_states[0:19],
             self.symbolic_states_math,
             self.Ts,
             self.control_input,
         )
+        self.current_states[16:19] = self.wind = self.wind + 0.025 * (np.random.random(3) - 0.5)
 
     def observation_function(self) -> list:
-        self.all_obs[self.counter] = observation = np.concatenate(
+        self.observation = concat(
             (self.current_states[0:16], self.control_input), axis=0
         )
-        return observation
+        self.all_obs[self.counter] = concat((self.current_states, self.control_input), axis=0)
+        for iii in range(20):
+            current_range = self.observation_space_domain[self.states_str[iii]]
+            self.observation[iii] = (
+                2 * (self.observation[iii] - current_range[0]) / (current_range[1] - current_range[0]) - 1
+            )
+        return self.observation
 
     def reward_function(self, observation, rew_cof=[10, 0.0001, 0.01]) -> float:
         # add reward slope to the reward

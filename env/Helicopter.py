@@ -62,7 +62,7 @@ class Helicopter:
             115.19,
             0.03,
         )
-        self.uwind, self.vwind, self.wwind = 0.0, 0.0, 0.0
+        # self.uwind, uwind, uwind = 0.0, 0.0, 0.0
         self.vh = sp.sqrt((self.mass) * 9.8 / (2 * self.rho * 3.1415 * self.Rmr ** 2))
         self.vhtr = -sp.sqrt(self.fQ0 / (2 * self.rho * 3.1415 * self.Rtr ** 2))
         self.OMEGAtr = self.ntr * self.OMEGA
@@ -186,6 +186,9 @@ class Helicopter:
             b_flapping,
             c_flapping,
             d_flapping,
+            uwind,
+            vwind,
+            wwind
         ) = (
             x_state[0],
             x_state[1],
@@ -203,13 +206,16 @@ class Helicopter:
             x_state[13],
             x_state[14],
             x_state[15],
+            x_state[16],
+            x_state[17],
+            x_state[18],
         )
         A_b, B_a, taus, Dlat, Kc, Kd, Clon = 0.1, 0.1, 0.20008, 0, 0.3058, 0.3058, 0
         I_moment = sp.Matrix([[0.297831, 0, 0], [0, 1.5658, 0], [0, 0, 2]])
         inverse_I_moment = I_moment ** (-1)
         THETA = sp.Matrix([fi_angle, theta_angle, si_angle])
         omega = sp.Matrix([p_angle, q_angle, r_angle]).reshape(3, 1)
-        wind_velocity = (self.RbI(THETA) * (sp.Matrix([self.uwind, self.vwind, self.wwind]))).reshape(3, 1)
+        wind_velocity = (self.RbI(THETA) * (sp.Matrix([uwind, vwind, wwind]))).reshape(3, 1)
         Velocity = sp.Matrix([u_velocity, v_velocity, w_velocity]).reshape(3, 1)
         Uf = wind_velocity - Velocity
         Uftr = Velocity - wind_velocity
@@ -219,14 +225,14 @@ class Helicopter:
         mu_tr = ((Uftr.norm()) / self.vhtr) ** 2 - Va_induced_t ** 2
         romega = r_angle - self.OMEGA
         qomega = q_angle + self.OMEGAtr
-        mumr = sp.sqrt((u_velocity - self.uwind) ** 2 + (v_velocity - self.vwind) ** 2) / (self.OMEGA * self.Rmr)
+        mumr = sp.sqrt((u_velocity - uwind) ** 2 + (v_velocity - uwind) ** 2) / (self.OMEGA * self.Rmr)
         main_induced_v = 16 / (sp.pi * (((Va_induced * 1.5 + 1.9)) ** 2 + 0.9)) + 0.01
         tail_induced_v = 16 / (sp.pi * (((Va_induced_t * 1.5 + 1.9)) ** 2 + 0.9)) + 0.01
         Vi = main_induced_v * self.vh / sp.sqrt(1 + mu)
         Vi_t = tail_induced_v * self.vhtr / sp.sqrt(1 + mu_tr)
-        Vyi, Vzi = v_velocity - Vi_t - self.vwind, w_velocity - Vi - self.wwind
-        Vxq = u_velocity + q_angle * self.zcg - self.uwind
-        Vyp = v_velocity - p_angle * self.zcg - self.vwind
+        Vyi, Vzi = v_velocity - Vi_t - uwind, w_velocity - Vi - uwind
+        Vxq = u_velocity + q_angle * self.zcg - uwind
+        Vyp = v_velocity - p_angle * self.zcg - uwind
         Ku = 2 * self.K_mu * (4 * U_input[0] / 3 - Vi / (self.OMEGA * self.Rmr))
         Kv = -Ku
         Kw = (
@@ -237,12 +243,12 @@ class Helicopter:
             / ((1 - mumr ** 2 / 2) * (8 * sp.sign(mumr) + self.CLa * self.sigmamr))
         )
         Vfus = sp.sqrt(
-            (u_velocity - self.uwind) ** 2 + (v_velocity - self.vwind) ** 2 + (w_velocity - self.wwind - Vi) ** 2
+            (u_velocity - uwind) ** 2 + (v_velocity - uwind) ** 2 + (w_velocity - uwind - Vi) ** 2
         )
         Xfus, Yfus, Zfus = (
-            -0.5 * self.rho * self.Sxfus * Vfus * (u_velocity - self.uwind),
-            -0.5 * self.rho * self.Syfus * Vfus * (v_velocity - self.vwind),
-            -0.5 * self.rho * self.Szfus * Vfus * (w_velocity - self.wwind - Vi),
+            -0.5 * self.rho * self.Sxfus * Vfus * (u_velocity - uwind),
+            -0.5 * self.rho * self.Syfus * Vfus * (v_velocity - uwind),
+            -0.5 * self.rho * self.Szfus * Vfus * (w_velocity - uwind - Vi),
         )
         Fdrag = sp.Matrix([Xfus, Yfus, Zfus]).T
         mux, muy, muz = (
@@ -294,7 +300,7 @@ class Helicopter:
             * sp.Matrix(
                 [
                     -self.Rmr ** 2
-                    * (p_angle * (u_velocity - self.uwind) + q_angle * (v_velocity - self.vwind) - 2 * romega * Vzi),
+                    * (p_angle * (u_velocity - uwind) + q_angle * (v_velocity - uwind) - 2 * romega * Vzi),
                     0.25 * self.Rmr * (6 * Vyp * Vzi - 3 * self.Rmr ** 2 * q_angle * romega),
                     -0.25 * self.Rmr * (6 * Vxq * Vzi - 3 * self.Rmr ** 2 * p_angle * romega),
                     0,
@@ -314,8 +320,8 @@ class Helicopter:
             * (
                 (3 * q_angle + 2 * self.OMEGAtr) * (p_angle * self.zfus - r_angle * self.xfus)
                 - 2 * qomega * Vyi
-                + (u_velocity - self.uwind) * p_angle
-                + (w_velocity - self.wwind - self.Kt * Vi) * r_angle
+                + (u_velocity - uwind) * p_angle
+                + (w_velocity - uwind - self.Kt * Vi) * r_angle
             )
         )
         bTtr = (
@@ -331,8 +337,8 @@ class Helicopter:
                     0,
                     0,
                     0,
-                    3 * ((u_velocity - self.uwind) + q_angle * self.zfus - r_angle * self.yfus) ** 2
-                    + 3 * ((w_velocity - self.wwind - self.Kt * Vi) + p_angle * self.yfus - q_angle * self.xfus) ** 2
+                    3 * ((u_velocity - uwind) + q_angle * self.zfus - r_angle * self.yfus) ** 2
+                    + 3 * ((w_velocity - uwind - self.Kt * Vi) + p_angle * self.yfus - q_angle * self.xfus) ** 2
                     + 2 * self.Rtr ** 2 * (q_angle + self.OMEGAtr) ** 2,
                 ]
             )
@@ -357,14 +363,14 @@ class Helicopter:
             - a_flapping / self.taufb
             + 1
             / (self.taufb * self.OMEGA * self.Rmr)
-            * (Ku * (u_velocity - self.uwind) + Kw * (w_velocity - self.wwind))
+            * (Ku * (u_velocity - uwind) + Kw * (w_velocity - uwind))
             + self.Alon / self.taufb * (U_input[2] + Kc * c_flapping)
             - A_b * b_flapping / self.taufb
         )
         x_dot14 = (
             -p_angle
             - b_flapping / self.taufb
-            + 1 / (self.taufb * self.OMEGA * self.Rmr) * Kv * (v_velocity - self.vwind)
+            + 1 / (self.taufb * self.OMEGA * self.Rmr) * Kv * (v_velocity - uwind)
             + self.Blat / self.taufb * (U_input[1] + Kd * d_flapping)
             + B_a * a_flapping / self.taufb
         )
@@ -387,4 +393,7 @@ class Helicopter:
             x_dot14,
             x_dot15,
             x_dot16,
+            uwind,
+            vwind,
+            wwind
         ]
