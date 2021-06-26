@@ -29,17 +29,17 @@ my_env.constant_dict = {
     "d": 1.0,
 }
 while not done:
-    current_action = my_contr.Controller_model(my_env.current_states, my_env.Ts * my_env.counter)
+    # current_action = my_contr.Controller_model(my_env.current_states, my_env.Ts * my_env.counter)
     # print(current_action[1], current_action[2])
     observation, b, done, _ = my_env.step(np.array((0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0), dtype=np.float64))
-    # my_env.current_states, b, done, _ = my_env.step([current_action[0], 0.1, current_action[2], current_action[3]])
+    # my_env.current_states, b, done, _ = my_env.step([current_action[0], current_action[1], current_action[2], current_action[3]])
 
     # print(my_env.current_states)
 
-    fields = current_action
-    with open("ctrl.csv", "a") as f:
-        writer = csv.writer(f)
-        writer.writerow(fields)
+    # fields = current_action
+    # with open("ctrl.csv", "a") as f:
+    #     writer = csv.writer(f)
+    #     writer.writerow(fields)
 my_env.reset()
 # if my_env.best_reward > current_best_rew:
 #     current_best_rew = my_env.best_reward

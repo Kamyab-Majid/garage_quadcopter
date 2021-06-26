@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-"""This is an example to train a task with SAC algorithm written in PyTorch."""
 import numpy as np
 import torch
 from torch import nn
@@ -17,6 +16,9 @@ from garage.torch.q_functions import ContinuousMLPQFunction
 from garage.trainer import Trainer
 import gym
 import envs
+import csv
+import logging
+import sys
 
 
 @wrap_experiment(archive_launch_repo=False, snapshot_mode="none")
@@ -34,6 +36,7 @@ def sac_helicopter(
     min_buffer_size=1e5,
     tau=5e-3,
     steps_per_epoch=1,
+    normalization=0,
 ):
     """Set up environment and algorithm and run the task.
 
@@ -46,8 +49,10 @@ def sac_helicopter(
     """
     deterministic.set_seed(seed)
     trainer = Trainer(snapshot_config=ctxt)
-    fake_env = gym.make("CustomEnv-v0")
-    env = normalize(GymEnv("CustomEnv-v0", max_episode_length=max_episode_length))
+    if normalization == 1:
+        env = normalize(GymEnv("CustomEnvnw-v0", max_episode_length=max_episode_length))
+    else:
+        env = GymEnv("CustomEnvnw-v0", max_episode_length=max_episode_length)
 
     policy = TanhGaussianMLPPolicy(
         env_spec=env.spec,
@@ -91,8 +96,8 @@ def sac_helicopter(
         set_gpu_mode(False)
     sac.to()
     trainer.setup(algo=sac, env=env)
-    trainer.train(n_epochs=10, batch_size=batch_size)
-    return policy
+    trainer.train(n_epochs=1, batch_size=batch_size)
+    return policy, env
 
 
 def objective(trial):
@@ -107,11 +112,10 @@ def objective(trial):
     net_arch = trial.suggest_categorical("net_arch", ["small", "medium", "big", "verybig"])
     n_steps = trial.suggest_categorical("n_steps", [8, 16, 32, 64, 128, 256, 512, 1024, 2048])
     gradient_steps_per_itr = trial.suggest_categorical("gradient_steps_per_itr", [1, 5, 10])
+    normalization = trial.suggest_categorical("normalization", [0, 1])
     net_arch = {"small": [256, 256], "medium": [400, 300], "big": [256, 256, 256], "verybig": [512, 512, 512]}[net_arch]
-    env = GymEnv("CustomEnv-v0", max_episode_length=n_steps)
-    try_env = gym.make("CustomEnv-v0")
     s = np.random.randint(0, 1000)
-    policy = sac_helicopter(
+    policy, try_env = sac_helicopter(
         seed=521,
         gamma=gamma,
         gradient_steps_per_itr=gradient_steps_per_itr,
@@ -124,6 +128,7 @@ def objective(trial):
         min_buffer_size=min_buffer_size,
         tau=tau,
         steps_per_epoch=train_freq,
+        normalization=normalization,
     )
     #     snapshotter = Snapshotter()
     #     with tf.compat.v1.Session():  # optional, only for TensorFlow
@@ -134,22 +139,36 @@ def objective(trial):
     steps, max_steps = 0, 500000
     for i in range(10):
         done = False
-        obs = try_env.reset()  # The initial observation
+        obs = try_env.reset()[0]  # The initial observation
         policy.reset()
         while steps < max_steps and not done:
-            obs, rew, done, _ = try_env.step(policy.get_action(obs)[0])
+            all_data = try_env.step(policy.get_action(obs)[0])
+            obs = all_data.observation
+            done = all_data.terminal
+            rew = all_data.reward
             # env.render()  # Render the environment to see what's going on (optional)
             steps += 1
             tot_reward += rew
     return tot_reward
 
 
-# snapshotter = Snapshotter()
-# # fake_env = gym.make("CustomEnv-v0")
-# # env = GymEnv("CustomEnv-v0", max_episode_length=fake_env.numTimeStep)
-# fake_env = gym.make("CustomEnv-v0")
-# env = GymEnv("CustomEnv-v0", max_episode_length=fake_env.numTimeStep)
-study = optuna.create_study(direction="maximize")
+# def objective(trial):
+#     x = trial.suggest_uniform('x', -100, 100)
+#     return (x - 2) ** 2
+
+# study = optuna.create_study(direction='minimize')
+# study.optimize(objective, n_trials=100)
+optuna.logging.get_logger("optuna_sac_nw").addHandler(logging.StreamHandler(sys.stdout))
+study_name = "optuna_sac_nw"  # Unique identifier of the study.
+storage_name = "sqlite:///{}.db".format(study_name)
+study = optuna.create_study(study_name=study_name, storage=storage_name, load_if_exists=True)
 study.optimize(objective, n_trials=1)
+print("Minimum mean squared error: " + str(study.best_value))
+print("Best parameter: " + str(study.best_params))
+fields = study.best_params
+with open("parameters.csv", "a") as f:
+    writer = csv.DictWriter(f, fieldnames=study.best_params.keys())
+    writer.writeheader()
+    writer.writerow(fields)
 study.trials_dataframe().to_csv(path_or_buf="optuna_results_sac.csv")
 # trpo_quadcopter(seed=1, fake_env=fake_env, env=env)

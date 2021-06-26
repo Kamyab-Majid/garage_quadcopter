@@ -12,6 +12,7 @@ import random
 
 class CustomEnv(gym.Env, ABC):
     def __init__(self):
+        print("nw_init")
         self.Controller = Controller()
         self.U_input = [U1, U2, U3, U4] = sp.symbols("U1:5", real=True)
         self.x_state = [
@@ -186,6 +187,12 @@ class CustomEnv(gym.Env, ABC):
             )
             + 0.01
         )  # 15d
+        ran_ind = np.random.choice(12, size=1, replace=False)
+        #         self.current_states[ran_ind] = self.current_states[ran_ind]   + np.random.uniform(0.1, 0.2, 1) * (
+        #         -1) ** random.randint(0, 1)
+
+        self.wind1 = (-1) ** np.random.choice([0, 1], 3) * 0.5 + 0.025 * (np.random.random(3) - 0.5)
+        self.jk = 1
 
     def reset(self):
         # initialization
@@ -204,10 +211,10 @@ class CustomEnv(gym.Env, ABC):
 
         # self.current_states = self.initial_states  # * (1 + s * a)
         # [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-        ran_ind = np.random.choice(12, size=1, replace=False)
-        # self.current_states[ran_ind] = self.current_states[ran_ind]  # + np.random.uniform(0.1, 0.2, 1) * (
-        # -1) ** random.randint(0, 1)
-        self.wind = (-1) ** np.random.choice([0, 1], 3) * 0.1 + 0.025 * (np.random.random(3) - 0.5)
+        self.wind = (
+            self.wind1 + ((-1) ** np.random.choice([0, 1], 3) * 1 + 0.025 * (np.random.random(3) - 0.5)) / self.jk
+        )
+        self.jk = self.jk + 0.001
         self.current_states = concat((self.initial_states, self.wind), axis=0)  # * (1 + s * a)
 
         self.observation = self.observation_function()
@@ -241,12 +248,10 @@ class CustomEnv(gym.Env, ABC):
             self.Ts,
             self.control_input,
         )
-        self.current_states[16:19] = self.wind = self.wind + 0.025 * (np.random.random(3) - 0.5)
+        self.current_states[16:19] = self.wind = self.wind + 0.005 * self.wind
 
     def observation_function(self) -> list:
-        self.observation = concat(
-            (self.current_states[0:16], self.control_input), axis=0
-        )
+        self.observation = concat((self.current_states[0:16], self.control_input), axis=0)
         self.all_obs[self.counter] = concat((self.current_states, self.control_input), axis=0)
         for iii in range(20):
             current_range = self.observation_space_domain[self.states_str[iii]]
@@ -337,3 +342,6 @@ class CustomEnv(gym.Env, ABC):
         for i in range(len(true_list)):
             if i == 1:
                 self.current_states[i] = self.initial_states[i]
+
+    def close(self):
+        return None
