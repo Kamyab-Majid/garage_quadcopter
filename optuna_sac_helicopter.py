@@ -14,8 +14,6 @@ from garage.torch.algos import SAC
 from garage.torch.policies import TanhGaussianMLPPolicy
 from garage.torch.q_functions import ContinuousMLPQFunction
 from garage.trainer import Trainer
-import gym
-import envs
 import csv
 import logging
 import sys
@@ -26,9 +24,9 @@ def sac_helicopter(
     ctxt=None,
     seed=1,
     gamma=0.99,
-    gradient_steps_per_itr=1000,
-    max_episode_length=100000,
-    batch_size=1000,
+    gradient_steps_per_itr=100,
+    max_episode_length=1000,
+    batch_size=100,
     net_arch=[256, 256],
     min_std=-20,
     max_std=1,
@@ -50,9 +48,9 @@ def sac_helicopter(
     deterministic.set_seed(seed)
     trainer = Trainer(snapshot_config=ctxt)
     if normalization == 1:
-        env = normalize(GymEnv("CustomEnvnw-v0", max_episode_length=max_episode_length))
+        env = normalize(GymEnv('gym_helicopter.envs:helicopter-v2', max_episode_length=max_episode_length))
     else:
-        env = GymEnv("CustomEnvnw-v0", max_episode_length=max_episode_length)
+        env = GymEnv('gym_helicopter.envs:helicopter-v2', max_episode_length=max_episode_length)
 
     policy = TanhGaussianMLPPolicy(
         env_spec=env.spec,
@@ -96,22 +94,22 @@ def sac_helicopter(
         set_gpu_mode(False)
     sac.to()
     trainer.setup(algo=sac, env=env)
-    trainer.train(n_epochs=1, batch_size=batch_size)
+    trainer.train(n_epochs=1000, batch_size=batch_size)
     return policy, env
 
 
 def objective(trial):
     gamma = trial.suggest_categorical("gamma", [0.9, 0.95, 0.98, 0.99, 0.995, 0.999, 0.9999])
     batch_size = trial.suggest_categorical("batch_size", [16, 32, 64, 128, 256, 512, 1024, 2048])
-    buffer_size = trial.suggest_categorical("buffer_size", [int(1e4), int(1e5), int(1e6), int(1e7)])
-    min_buffer_size = trial.suggest_categorical("learning_starts", [0, 1000, 10000, 20000, 200000])
+    buffer_size = trial.suggest_categorical("buffer_size1", [int(30000), int(40000), int(50000), int(100000)])
+    min_buffer_size = trial.suggest_categorical("learning_starts", [10, 100, 1000, 2000, 20000])
     train_freq = trial.suggest_categorical("train_freq", [1, 4, 8, 16])
     min_std = trial.suggest_categorical("min_std", [-1, -5, -10, -20, -40])
     max_std = trial.suggest_categorical("max_std", [-1, 5, 10, 20, 40])
     tau = trial.suggest_categorical("tau", [0.001, 0.005, 0.01, 0.02, 0.05, 0.08, 0.1, 0.2])
     net_arch = trial.suggest_categorical("net_arch", ["small", "medium", "big", "verybig"])
     n_steps = trial.suggest_categorical("n_steps", [8, 16, 32, 64, 128, 256, 512, 1024, 2048])
-    gradient_steps_per_itr = trial.suggest_categorical("gradient_steps_per_itr", [1, 5, 10])
+    gradient_steps_per_itr = trial.suggest_categorical("gradient_steps_per_itr", [1, 2, 5])
     normalization = trial.suggest_categorical("normalization", [0, 1])
     net_arch = {"small": [256, 256], "medium": [400, 300], "big": [256, 256, 256], "verybig": [512, 512, 512]}[net_arch]
     s = np.random.randint(0, 1000)
@@ -119,7 +117,7 @@ def objective(trial):
         seed=521,
         gamma=gamma,
         gradient_steps_per_itr=gradient_steps_per_itr,
-        max_episode_length=100000,
+        max_episode_length=n_steps,
         batch_size=batch_size,
         net_arch=net_arch,
         min_std=min_std,
@@ -142,13 +140,17 @@ def objective(trial):
         obs = try_env.reset()[0]  # The initial observation
         policy.reset()
         while steps < max_steps and not done:
-            all_data = try_env.step(policy.get_action(obs)[0])
-            obs = all_data.observation
-            done = all_data.terminal
-            rew = all_data.reward
-            # env.render()  # Render the environment to see what's going on (optional)
-            steps += 1
-            tot_reward += rew
+            try:
+                all_data = try_env.step(policy.get_action(obs)[0])
+                obs = all_data.observation
+                done = all_data.terminal
+                if done:
+                    rew = all_data.reward
+                # env.render()  # Render the environment to see what's going on (optional)
+                steps += 1
+                tot_reward += rew
+            except RuntimeError:
+                done = True
     return tot_reward
 
 
@@ -162,7 +164,7 @@ optuna.logging.get_logger("optuna_sac_nw").addHandler(logging.StreamHandler(sys.
 study_name = "optuna_sac_nw"  # Unique identifier of the study.
 storage_name = "sqlite:///{}.db".format(study_name)
 study = optuna.create_study(study_name=study_name, storage=storage_name, load_if_exists=True)
-study.optimize(objective, n_trials=1)
+study.optimize(objective, n_trials=200)
 print("Minimum mean squared error: " + str(study.best_value))
 print("Best parameter: " + str(study.best_params))
 fields = study.best_params

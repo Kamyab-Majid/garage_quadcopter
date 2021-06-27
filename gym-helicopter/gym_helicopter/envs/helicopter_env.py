@@ -1,7 +1,7 @@
 import sympy as sp
 import numpy as np
 from numpy import concatenate as concat
-from abc import ABC
+
 import gym
 from gym import spaces
 from env.Helicopter import Helicopter
@@ -10,7 +10,7 @@ from utils_main import save_files
 import random
 
 
-class CustomEnv(gym.Env, ABC):
+class HelicopterEnv(gym.Env):
     def __init__(self):
         print("nw_init")
         self.Controller = Controller()
@@ -109,12 +109,12 @@ class CustomEnv(gym.Env, ABC):
             "time, "
             + act_header
             + ", "
-            + obs_header[0:12]
+            + obs_header[0:130]
             + ","
             + "uwind,"
             + "vwind,"
             + "wwind,"
-            + obs_header[13:17]
+            + obs_header[189:240]
             + "reward,"
             + "control_reward"
         )

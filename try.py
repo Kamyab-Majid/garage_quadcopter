@@ -1,12 +1,10 @@
 import csv
 import gym
-import envs
 from env.controller import Controller
 import numpy as np 
 
 my_contr = Controller()
-ENV_ID = "CustomEnv-v0"
-my_env = gym.make(ENV_ID)
+my_env = gym.make('gym_helicopter.envs:helicopter-v2')
 done = False
 observation = my_env.reset()
 my_env.save_counter = 10000
