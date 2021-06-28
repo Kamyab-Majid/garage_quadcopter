@@ -30,7 +30,7 @@ class save_files:
         self.date = datetime.now().strftime("%Y_%m_%d_%I_%M_%S_%p")
         self.current_dir = os.getcwd()
         self.path_step_reward = "results/reward_step"
-        self.path_diverge = "results/diverge_data"
+        self.path_diverge = f"results/diverge_data{self.date}"
 
         self.path_best_reward = f"results/bestreward{self.date}"
         self.path_model = f"results/model{self.date}"
@@ -39,7 +39,9 @@ class save_files:
         self._save_init(self.path_model)
         self._save_init(self.path_diverge)
         self.index = 1
-        self.index_diverge = 1
+        self.i_diverge = 0
+        self.diverge_count = 0
+
         fields = ["counter", "step", "reward"]
         with open(f"{self.path_step_reward}/reward_step{self.date}.csv", "a") as f:
             writer = csv.writer(f)
@@ -89,9 +91,15 @@ class save_files:
         date = datetime.now().strftime("%Y_%m_%d_%I_%M_%S_%p")
         torch.save(model.state_dict(), f"{self.path_model}/model{date}.pt")
 
-    def diverge_save(self, diverged_state, diverged_value):
-        fields = [self.index_diverge, diverged_state, diverged_value]
-        with open(f"{self.path_diverge}/diverged_epsiodes_states{self.date}.csv", "a") as f:
-            writer = csv.writer(f)
-            writer.writerow(fields)
-        self.index_diverge += 1
+    def diverge_save(self, obs_dict, observation_count):
+        if self.i_diverge == 0:
+            self.header_diverge = ""
+            for elem in obs_dict.keys():
+                self.header_diverge += elem + ", "
+            self.i_diverge = 1
+            self.a = np.zeros(len(obs_dict))
+        self.a[observation_count] += 1
+        self.diverge_count += 1
+        if self.diverge_count == 1: 
+            np.savetxt(f'{self.path_diverge}/diverge.csv', self.a.reshape(1, self.a.shape[0]), header=str(self.header_diverge), delimiter=",", fmt="%d")
+            self.diverge_count = 0

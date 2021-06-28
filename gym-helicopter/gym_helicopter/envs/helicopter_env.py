@@ -40,7 +40,7 @@ class HelicopterEnv(gym.Env):
         self.My_controller = Controller()
         self.t = sp.symbols("t")
         self.symbolic_states_math, jacobian = self.My_helicopter.lambd_eq_maker(self.t, self.x_state, self.U_input)
-        self.default_range = default_range = (-10, 10)
+        self.default_range = default_range = (-100, 100)
         self.velocity_range = velocity_range = (-200, 200)
         self.ang_velocity_range = ang_velocity_range = (-100, 100)
         self.ang_p_velocity_range = ang_p_velocity_range = (-100, 100)
@@ -52,9 +52,9 @@ class HelicopterEnv(gym.Env):
             "p_angle": ang_p_velocity_range,
             "q_angle": ang_velocity_range,
             "r_angle": ang_velocity_range,
-            "fi_angle": (-0.3, 0.3),
-            "theta_angle": (-0.3, 0.3),
-            "si_angle": (-0.3, 0.3),
+            "fi_angle": (-0.6, 0.6),
+            "theta_angle": (-0.6, 0.6),
+            "si_angle": (-0.6, 0.6),
             "xI": default_range,
             "yI": default_range,
             "zI": default_range,
@@ -63,10 +63,10 @@ class HelicopterEnv(gym.Env):
             "c_flapping": velocity_range,
             "d_flapping": velocity_range,
             # "t": (self.Ti, self.Tf),
-            "delta_col": (-0.5, 1),
-            "delta_lat": (-0.5, 1),
-            "delta_lon": (-0.5, 1),
-            "delta_ped": (-0.5, 1),
+            "delta_col": (-10, 10),
+            "delta_lat": (-10, 10),
+            "delta_lon": (-10, 10),
+            "delta_ped": (-10, 10),
         }
         self.states_str = list(self.observation_space_domain.keys())
         self.low_obs_space = np.array(tuple(zip(*self.observation_space_domain.values()))[0], dtype=np.float32) * 0 - 1
@@ -156,7 +156,6 @@ class HelicopterEnv(gym.Env):
         self.longest_num_step = 0
         self.best_reward = float("-inf")
         self.diverge_counter = 0
-        self.diverge_list = []
         self.numTimeStep = int(self.Tf / self.Ts + 1)
         self.ifsave = 0
         self.low_control_input = [0.01, -0.1, -0.1, 0.01]
@@ -191,7 +190,7 @@ class HelicopterEnv(gym.Env):
         #         self.current_states[ran_ind] = self.current_states[ran_ind]   + np.random.uniform(0.1, 0.2, 1) * (
         #         -1) ** random.randint(0, 1)
 
-        self.wind1 = (-1) ** np.random.choice([0, 1], 3) * 0.5 + 0.025 * (np.random.random(3) - 0.5)
+        self.wind1 = (-1) ** np.random.choice([0, 1], 3) * 20 + 0.25 * (np.random.random(3) - 0.5)
         self.jk = 1
 
     def reset(self):
@@ -212,7 +211,7 @@ class HelicopterEnv(gym.Env):
         # self.current_states = self.initial_states  # * (1 + s * a)
         # [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
         self.wind = (
-            self.wind1 + ((-1) ** np.random.choice([0, 1], 3) * 1 + 0.025 * (np.random.random(3) - 0.5)) / self.jk
+            self.wind1  # + ((-1) ** np.random.choice([0, 1], 3) * 1 + 0.025 * (np.random.random(3) - 0.5)) / self.jk
         )
         self.jk = self.jk + 0.001
         self.current_states = concat((self.initial_states, self.wind), axis=0)  # * (1 + s * a)
@@ -227,14 +226,18 @@ class HelicopterEnv(gym.Env):
         self.normilized_actions = current_action
         un_act = (current_action + 1) * (self.high_action - self.low_action) / 2 + self.low_action
         self.all_actions[self.counter] = self.normilized_actions  # unnormalized_action
-        self.control_input[0] = un_act[0] * obs[11] + un_act[1] * obs[2]
-        self.control_input[2] = un_act[2] * obs[9] + un_act[3] * obs[0] + un_act[4] * obs[4] + un_act[5] * obs[7]
-        self.control_input[1] = un_act[6] * obs[10] + un_act[7] * obs[1] + un_act[8] * obs[3] + un_act[9] * obs[6]
-        self.control_input[3] = un_act[10] * obs[5] + un_act[11] * obs[8]
-        self.control_input[0] = 0.1167 * self.control_input[0] + 0.1
-        self.control_input[1] = 0.03125 * self.control_input[1]
-        self.control_input[2] = 0.02857 * self.control_input[2]
-        self.control_input[3] = 0.2227 * self.control_input[3] + 0.18
+        self.control_input[0] = un_act[0] * 5 * obs[11] + un_act[1] * 5 * obs[2]
+        self.control_input[2] = (
+            un_act[2] * 5 * obs[9] + un_act[3] * 5 * obs[0] + un_act[4] * 5 * obs[4] + un_act[5] * obs[7]
+        )
+        self.control_input[1] = (
+            un_act[6] * 5 * obs[10] + un_act[7] * 5 * obs[1] + un_act[8] * 5 * obs[3] + un_act[9] * obs[6]
+        )
+        self.control_input[3] = un_act[10] * 5 * obs[5] + un_act[11] * 5 * obs[8]
+        self.control_input[0] = 2.1167 * self.control_input[0] + 0.1
+        self.control_input[1] = 2.03125 * self.control_input[1]
+        self.control_input[2] = 2.02857 * self.control_input[2]
+        self.control_input[3] = 2.2227 * self.control_input[3] + 0.18
 
         self.all_control[self.counter] = self.control_input
 
@@ -264,7 +267,7 @@ class HelicopterEnv(gym.Env):
         # add reward slope to the reward
         # TODO: normalizing reward
         # TODO: adding reward gap
-        error = -rew_cof[0] * np.linalg.norm(observation[0:12].reshape(12) - self.initial_states[0:12].reshape(12), 2)
+        error = -rew_cof[0] * np.linalg.norm(observation[0:12].reshape(12) - self.initial_states[0:12].reshape(12), 4)
         reward = error.copy()
         self.control_rewards[self.counter] = error
         self.integral_error = 0.1 * (0.99 * self.control_rewards[self.counter - 1] + 0.99 * self.integral_error)
@@ -278,12 +281,7 @@ class HelicopterEnv(gym.Env):
     def check_diverge(self) -> bool:
         for i in range(len(self.high_obs_space)):
             if (abs(self.all_obs[self.counter, i])) > self.high_obs_space[i]:
-                self.diverge_list.append((tuple(self.observation_space_domain.keys())[i], self.observation[i]))
-                self.saver.diverge_save(tuple(self.observation_space_domain.keys())[i], self.observation[i])
-                self.diverge_counter += 1
-                if self.diverge_counter == 2000:
-                    self.diverge_counter = 0
-                    print((tuple(self.observation_space_domain.keys())[i], self.observation[i]))
+                self.saver.diverge_save(self.observation_space_domain, i)
                 self.jj = 1
 
         if self.jj == 1:
@@ -303,7 +301,7 @@ class HelicopterEnv(gym.Env):
         counter = self.counter
         self.save_counter += 1
         current_total_reward = sum(self.all_rewards)
-        if self.save_counter >= 100:
+        if self.save_counter >= 1000:
             print("current_total_reward: ", current_total_reward)
             self.save_counter = 0
             self.saver.reward_step_save(self.best_reward, self.longest_num_step, current_total_reward, counter)
