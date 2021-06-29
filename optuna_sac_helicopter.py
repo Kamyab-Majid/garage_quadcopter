@@ -94,21 +94,20 @@ def sac_helicopter(
         set_gpu_mode(False)
     sac.to()
     trainer.setup(algo=sac, env=env)
-    trainer.train(n_epochs=1000, batch_size=batch_size)
+    trainer.train(n_epochs=10, batch_size=batch_size)
     return policy, env
 
 
 def objective(trial):
     gamma = trial.suggest_categorical("gamma", [0.9, 0.95, 0.98, 0.99, 0.995, 0.999, 0.9999])
     batch_size = trial.suggest_categorical("batch_size", [16, 32, 64, 128, 256, 512, 1024, 2048])
-    buffer_size = trial.suggest_categorical("buffer_size1", [int(30000), int(40000), int(50000), int(100000)])
-    min_buffer_size = trial.suggest_categorical("learning_starts", [10, 100, 1000, 2000, 20000])
+    buffer_size = trial.suggest_categorical("buffer_size1", [int(3000), int(4000), int(5000), int(10000)])
+    min_buffer_size = trial.suggest_categorical("learning_starts", [1, 10, 100, 200, 2000])
     train_freq = trial.suggest_categorical("train_freq", [1, 4, 8, 16])
     min_std = trial.suggest_categorical("min_std", [-1, -5, -10, -20, -40])
     max_std = trial.suggest_categorical("max_std", [-1, 5, 10, 20, 40])
     tau = trial.suggest_categorical("tau", [0.001, 0.005, 0.01, 0.02, 0.05, 0.08, 0.1, 0.2])
     net_arch = trial.suggest_categorical("net_arch", ["small", "medium", "big", "verybig"])
-    n_steps = trial.suggest_categorical("n_steps", [8, 16, 32, 64, 128, 256, 512, 1024, 2048])
     gradient_steps_per_itr = trial.suggest_categorical("gradient_steps_per_itr", [1, 2, 5])
     normalization = trial.suggest_categorical("normalization", [0, 1])
     net_arch = {"small": [256, 256], "medium": [400, 300], "big": [256, 256, 256], "verybig": [512, 512, 512]}[net_arch]
@@ -117,7 +116,7 @@ def objective(trial):
         seed=521,
         gamma=gamma,
         gradient_steps_per_itr=gradient_steps_per_itr,
-        max_episode_length=n_steps,
+        max_episode_length=100000,
         batch_size=batch_size,
         net_arch=net_arch,
         min_std=min_std,
@@ -144,8 +143,7 @@ def objective(trial):
                 all_data = try_env.step(policy.get_action(obs)[0])
                 obs = all_data.observation
                 done = all_data.terminal
-                if done:
-                    rew = all_data.reward
+                rew = all_data.reward
                 # env.render()  # Render the environment to see what's going on (optional)
                 steps += 1
                 tot_reward += rew

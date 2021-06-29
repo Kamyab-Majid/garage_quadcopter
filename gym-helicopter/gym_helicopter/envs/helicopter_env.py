@@ -12,7 +12,7 @@ import random
 
 class HelicopterEnv(gym.Env):
     def __init__(self):
-        print("nw_init")
+        print("diverged")
         self.Controller = Controller()
         self.U_input = [U1, U2, U3, U4] = sp.symbols("U1:5", real=True)
         self.x_state = [
@@ -63,14 +63,14 @@ class HelicopterEnv(gym.Env):
             "c_flapping": velocity_range,
             "d_flapping": velocity_range,
             # "t": (self.Ti, self.Tf),
-            "delta_col": (-10, 10),
-            "delta_lat": (-10, 10),
-            "delta_lon": (-10, 10),
-            "delta_ped": (-10, 10),
+            "delta_col": (-1000, 1000),
+            "delta_lat": (-1000, 1000),
+            "delta_lon": (-1000, 1000),
+            "delta_ped": (-1000, 1000),
         }
         self.states_str = list(self.observation_space_domain.keys())
-        self.low_obs_space = np.array(tuple(zip(*self.observation_space_domain.values()))[0], dtype=np.float32) * 0 - 1
-        self.high_obs_space = np.array(tuple(zip(*self.observation_space_domain.values()))[1], dtype=np.float32) * 0 + 1
+        self.low_obs_space = np.array(tuple(zip(*self.observation_space_domain.values()))[0], dtype=np.float32) 
+        self.high_obs_space = np.array(tuple(zip(*self.observation_space_domain.values()))[1], dtype=np.float32) 
         self.observation_space = spaces.Box(low=self.low_obs_space, high=self.high_obs_space, dtype=np.float32)
         self.default_act_range = default_act_range = (-0.3, 0.3)
         def_action = (-2, 2)
@@ -91,8 +91,8 @@ class HelicopterEnv(gym.Env):
         }
         self.low_action = np.array(tuple(zip(*self.action_space_domain.values()))[0], dtype=np.float32)
         self.high_action = np.array(tuple(zip(*self.action_space_domain.values()))[1], dtype=np.float32)
-        self.low_action_space = self.low_action * 0 - 1
-        self.high_action_space = self.high_action * 0 + 1
+        self.low_action_space = self.low_action 
+        self.high_action_space = self.high_action
         self.action_space = spaces.Box(low=self.low_action_space, high=self.high_action_space, dtype=np.float32)
         self.min_reward = -13
 
@@ -186,11 +186,12 @@ class HelicopterEnv(gym.Env):
             )
             + 0.01
         )  # 15d
-        ran_ind = np.random.choice(12, size=1, replace=False)
-        #         self.current_states[ran_ind] = self.current_states[ran_ind]   + np.random.uniform(0.1, 0.2, 1) * (
-        #         -1) ** random.randint(0, 1)
+        ran_ind = np.random.choice(3, size=1, replace=False)
+        self.initial_states[9 + ran_ind] = self.initial_states[ran_ind] + np.random.uniform(1, 2, 1) * (
+            -1
+        ) ** random.randint(0, 1)
 
-        self.wind1 = (-1) ** np.random.choice([0, 1], 3) * 20 + 0.25 * (np.random.random(3) - 0.5)
+        self.wind1 = np.array((0, 0, 0))  # (-1) ** np.random.choice([0, 1], 3) * 0 + 0.25 * (np.random.random(3) - 0.5)
         self.jk = 1
 
     def reset(self):
@@ -222,7 +223,6 @@ class HelicopterEnv(gym.Env):
         return self.observation
 
     def action_wrapper(self, current_action, obs) -> np.array:
-        current_action = current_action
         self.normilized_actions = current_action
         un_act = (current_action + 1) * (self.high_action - self.low_action) / 2 + self.low_action
         self.all_actions[self.counter] = self.normilized_actions  # unnormalized_action
@@ -243,7 +243,11 @@ class HelicopterEnv(gym.Env):
 
     def find_next_state(self) -> list:
         current_t = self.Ts * self.counter
-        # self.control_input = self.Controller.Controller_model(self.current_states[0:16], current_t)
+        # self.control_input = self.Controller.Controller_model(
+        #     self.current_states[0:16],
+        #     current_t,
+        #     # action=[1.09e-01, -1.78e-02, -2.20e-05, 0.19, 0.4, 4.1, 4.1, 1.5, 1.5, 0.5, 1, 0.7, 0.5, 0.4, 1, 0.6, 0.5],
+        # )
         self.current_states[0:19] = self.My_helicopter.RK45(
             current_t,
             self.current_states[0:19],
@@ -251,7 +255,7 @@ class HelicopterEnv(gym.Env):
             self.Ts,
             self.control_input,
         )
-        self.current_states[16:19] = self.wind = self.wind + 0.005 * self.wind
+        self.current_states[16:19] = self.wind  # = self.wind + 0.005 * (np.random.random(3) - 0.5)
 
     def observation_function(self) -> list:
         self.observation = concat((self.current_states[0:16], self.control_input), axis=0)
@@ -279,7 +283,7 @@ class HelicopterEnv(gym.Env):
         return reward
 
     def check_diverge(self) -> bool:
-        for i in range(len(self.high_obs_space)):
+        for i in range(12):
             if (abs(self.all_obs[self.counter, i])) > self.high_obs_space[i]:
                 self.saver.diverge_save(self.observation_space_domain, i)
                 self.jj = 1
@@ -307,8 +311,8 @@ class HelicopterEnv(gym.Env):
             self.saver.reward_step_save(self.best_reward, self.longest_num_step, current_total_reward, counter)
         if counter >= self.longest_num_step:
             self.longest_num_step = counter
-        if current_total_reward >= self.best_reward and sum(self.all_rewards) != 0:
-            self.best_reward = sum(self.all_rewards)
+        if current_total_reward >= self.best_reward * 1.01 and sum(self.all_rewards) != 0:
+            self.best_reward = current_total_reward
             ii = self.counter + 1
             self.saver.best_reward_save(
                 self.all_t[0:ii],

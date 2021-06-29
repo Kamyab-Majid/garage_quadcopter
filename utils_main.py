@@ -100,6 +100,6 @@ class save_files:
             self.a = np.zeros(len(obs_dict))
         self.a[observation_count] += 1
         self.diverge_count += 1
-        if self.diverge_count == 1: 
+        if self.diverge_count == 1000: 
             np.savetxt(f'{self.path_diverge}/diverge.csv', self.a.reshape(1, self.a.shape[0]), header=str(self.header_diverge), delimiter=",", fmt="%d")
             self.diverge_count = 0

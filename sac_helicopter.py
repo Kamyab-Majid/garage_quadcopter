@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
-"""This is an example to train a task with SAC algorithm written in PyTorch."""
 import numpy as np
 import torch
 from torch import nn
 from torch.nn import functional as F
-
+import optuna
 from garage import wrap_experiment
 from garage.envs import GymEnv, normalize
 from garage.experiment import deterministic
@@ -15,12 +14,28 @@ from garage.torch.algos import SAC
 from garage.torch.policies import TanhGaussianMLPPolicy
 from garage.torch.q_functions import ContinuousMLPQFunction
 from garage.trainer import Trainer
-import gym
-import envs
+import csv
+import logging
+import sys
 
 
 @wrap_experiment(archive_launch_repo=False)
-def sac_half_cheetah_batch(ctxt=None, seed=1):
+def sac_helicopter(
+    ctxt=None,
+    seed=1,
+    gamma=0.99,
+    gradient_steps_per_itr=100,
+    max_episode_length=1000,
+    batch_size=100,
+    net_arch=[256, 256],
+    min_std=-20,
+    max_std=1,
+    buffer_size=1e6,
+    min_buffer_size=1e5,
+    tau=5e-3,
+    steps_per_epoch=1,
+    normalization=0,
+):
     """Set up environment and algorithm and run the task.
 
     Args:
@@ -32,23 +47,25 @@ def sac_half_cheetah_batch(ctxt=None, seed=1):
     """
     deterministic.set_seed(seed)
     trainer = Trainer(snapshot_config=ctxt)
-    fake_env = gym.make("CustomEnv-v0")
-    env = normalize(GymEnv("CustomEnv-v0", max_episode_length=fake_env.numTimeStep))
+    if normalization == 1:
+        env = normalize(GymEnv("gym_helicopter.envs:helicopter-v2", max_episode_length=max_episode_length))
+    else:
+        env = GymEnv("gym_helicopter.envs:helicopter-v2", max_episode_length=max_episode_length)
 
     policy = TanhGaussianMLPPolicy(
         env_spec=env.spec,
-        hidden_sizes=[256, 256],
+        hidden_sizes=net_arch,
         hidden_nonlinearity=nn.ReLU,
         output_nonlinearity=nn.Tanh,
-        min_std=np.exp(-20.0),
-        max_std=np.exp(2.0),
+        min_std=np.exp(min_std),
+        max_std=np.exp(max_std),
     )
 
-    qf1 = ContinuousMLPQFunction(env_spec=env.spec, hidden_sizes=[256, 256], hidden_nonlinearity=F.relu)
+    qf1 = ContinuousMLPQFunction(env_spec=env.spec, hidden_sizes=net_arch, hidden_nonlinearity=F.relu)
 
-    qf2 = ContinuousMLPQFunction(env_spec=env.spec, hidden_sizes=[256, 256], hidden_nonlinearity=F.relu)
+    qf2 = ContinuousMLPQFunction(env_spec=env.spec, hidden_sizes=net_arch, hidden_nonlinearity=F.relu)
 
-    replay_buffer = PathBuffer(capacity_in_transitions=int(1e6))
+    replay_buffer = PathBuffer(capacity_in_transitions=int(buffer_size))
 
     sampler = RaySampler(
         agents=policy, envs=env, max_episode_length=env.spec.max_episode_length, worker_class=FragmentWorker
@@ -60,15 +77,15 @@ def sac_half_cheetah_batch(ctxt=None, seed=1):
         qf1=qf1,
         qf2=qf2,
         sampler=sampler,
-        gradient_steps_per_itr=1000,
-        max_episode_length_eval=1000,
+        gradient_steps_per_itr=gradient_steps_per_itr,
+        max_episode_length_eval=max_episode_length,
         replay_buffer=replay_buffer,
-        min_buffer_size=1e4,
-        target_update_tau=5e-3,
-        discount=0.99,
-        buffer_batch_size=256,
+        min_buffer_size=min_buffer_size,
+        target_update_tau=tau,
+        discount=gamma,
+        buffer_batch_size=batch_size,
         reward_scale=1.0,
-        steps_per_epoch=1,
+        steps_per_epoch=steps_per_epoch,
     )
 
     if torch.cuda.is_available():
@@ -77,8 +94,44 @@ def sac_half_cheetah_batch(ctxt=None, seed=1):
         set_gpu_mode(False)
     sac.to()
     trainer.setup(algo=sac, env=env)
-    trainer.train(n_epochs=1, batch_size=10)
+    trainer.train(n_epochs=1, batch_size=batch_size)
+    return policy, env
 
 
-s = np.random.randint(0, 1000)
-sac_half_cheetah_batch(seed=521)
+policy, try_env = sac_helicopter(
+    seed=521,
+    gamma=0.98,
+    gradient_steps_per_itr=2,
+    max_episode_length=100000,
+    batch_size=512,
+    net_arch=[400, 400],
+    min_std=-20,
+    max_std=-1,
+    buffer_size=4000,
+    min_buffer_size=10,
+    tau=0.005,
+    steps_per_epoch=16,
+    normalization=1,
+)
+#     snapshotter = Snapshotter()
+#     with tf.compat.v1.Session():  # optional, only for TensorFlow
+#         data = snapshotter.load("data/local/experiment/trpo_quadcopter")
+#     policy = data["algo"].policy
+# You can also access other components of the experiment
+tot_reward = 0
+steps, max_steps = 0, 500000
+for i in range(10):
+    done = False
+    obs = try_env.reset()[0]  # The initial observation
+    policy.reset()
+    while steps < max_steps and not done:
+        try:
+            all_data = try_env.step(policy.get_action(obs)[0])
+            obs = all_data.observation
+            done = all_data.terminal
+            rew = all_data.reward
+            # env.render()  # Render the environment to see what's going on (optional)
+            steps += 1
+            tot_reward += rew
+        except RuntimeError:
+            done = True

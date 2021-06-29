@@ -304,6 +304,7 @@ class Controller:
         ctrl = np.linalg.inv(b_Control).dot(-f + sdotr - Kmod)
         deltacol, deltalat, deltalon, deltaped = ctrl[2], ctrl[1], ctrl[0], ctrl[3]
         ctrl = [float(deltacol), float(deltalat), float(deltalon), float(deltaped)]
+        print('controller model')
         return ctrl
 
     def Desired_Trajectory(self, t_input, time=0):
