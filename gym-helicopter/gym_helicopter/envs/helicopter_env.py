@@ -12,7 +12,7 @@ import random
 
 class HelicopterEnv(gym.Env):
     def __init__(self):
-        print("diverged")
+        print("changed reward and random initial states")
         self.Controller = Controller()
         self.U_input = [U1, U2, U3, U4] = sp.symbols("U1:5", real=True)
         self.x_state = [
@@ -69,12 +69,12 @@ class HelicopterEnv(gym.Env):
             "delta_ped": (-1000, 1000),
         }
         self.states_str = list(self.observation_space_domain.keys())
-        self.low_obs_space = np.array(tuple(zip(*self.observation_space_domain.values()))[0], dtype=np.float32) 
-        self.high_obs_space = np.array(tuple(zip(*self.observation_space_domain.values()))[1], dtype=np.float32) 
+        self.low_obs_space = np.array(tuple(zip(*self.observation_space_domain.values()))[0], dtype=np.float32)
+        self.high_obs_space = np.array(tuple(zip(*self.observation_space_domain.values()))[1], dtype=np.float32)
         self.observation_space = spaces.Box(low=self.low_obs_space, high=self.high_obs_space, dtype=np.float32)
         self.default_act_range = default_act_range = (-0.3, 0.3)
-        def_action = (-2, 2)
-        lat_action = (-0.5, 0.5)
+        def_action = (-1, 1)
+        lat_action = (-1, 1)
         self.action_space_domain = {
             "col_z": def_action,
             "col_w": def_action,
@@ -91,7 +91,7 @@ class HelicopterEnv(gym.Env):
         }
         self.low_action = np.array(tuple(zip(*self.action_space_domain.values()))[0], dtype=np.float32)
         self.high_action = np.array(tuple(zip(*self.action_space_domain.values()))[1], dtype=np.float32)
-        self.low_action_space = self.low_action 
+        self.low_action_space = self.low_action
         self.high_action_space = self.high_action
         self.action_space = spaces.Box(low=self.low_action_space, high=self.high_action_space, dtype=np.float32)
         self.min_reward = -13
@@ -187,17 +187,15 @@ class HelicopterEnv(gym.Env):
             + 0.01
         )  # 15d
         ran_ind = np.random.choice(3, size=1, replace=False)
-        self.initial_states[9 + ran_ind] = self.initial_states[ran_ind] + np.random.uniform(1, 2, 1) * (
-            -1
-        ) ** random.randint(0, 1)
-
+        self.initial_states[9 + ran_ind] = np.random.uniform(1, 2, 1) * (-1) ** random.randint(0, 1)
+        # print("initial_stateeeeeeeeeeeeeees")
         self.wind1 = np.array((0, 0, 0))  # (-1) ** np.random.choice([0, 1], 3) * 0 + 0.25 * (np.random.random(3) - 0.5)
         self.jk = 1
 
     def reset(self):
         # initialization
         self.t = 0
-        self.all_obs = np.zeros((self.no_timesteps, len(self.high_obs_space) + 3))
+        self.all_obs = np.zeros((self.no_timesteps, len(self.high_obs_space)))
         self.all_actions = np.zeros((self.no_timesteps, len(self.high_action_space)))
         self.all_control = np.zeros((self.no_timesteps, 4))
         self.all_rewards = np.zeros((self.no_timesteps, 1))
@@ -243,11 +241,11 @@ class HelicopterEnv(gym.Env):
 
     def find_next_state(self) -> list:
         current_t = self.Ts * self.counter
-        # self.control_input = self.Controller.Controller_model(
-        #     self.current_states[0:16],
-        #     current_t,
-        #     # action=[1.09e-01, -1.78e-02, -2.20e-05, 0.19, 0.4, 4.1, 4.1, 1.5, 1.5, 0.5, 1, 0.7, 0.5, 0.4, 1, 0.6, 0.5],
-        # )
+        self.control_input = self.Controller.Controller_model(
+            self.current_states[0:16],
+            current_t,
+            # action=[1.09e-01, -1.78e-02, -2.20e-05, 0.19, 0.4, 4.1, 4.1, 1.5, 1.5, 0.5, 1, 0.7, 0.5, 0.4, 1, 0.6, 0.5],
+        )
         self.current_states[0:19] = self.My_helicopter.RK45(
             current_t,
             self.current_states[0:19],
@@ -259,7 +257,7 @@ class HelicopterEnv(gym.Env):
 
     def observation_function(self) -> list:
         self.observation = concat((self.current_states[0:16], self.control_input), axis=0)
-        self.all_obs[self.counter] = concat((self.current_states, self.control_input), axis=0)
+        self.all_obs[self.counter] = concat((self.current_states[0:16], self.control_input), axis=0)
         for iii in range(20):
             current_range = self.observation_space_domain[self.states_str[iii]]
             self.observation[iii] = (
@@ -267,7 +265,7 @@ class HelicopterEnv(gym.Env):
             )
         return self.observation
 
-    def reward_function(self, observation, rew_cof=[10, 0.0001, 0.01]) -> float:
+    def reward_function(self, observation, rew_cof=[10, 0.001, 0.01]) -> float:
         # add reward slope to the reward
         # TODO: normalizing reward
         # TODO: adding reward gap
@@ -276,30 +274,36 @@ class HelicopterEnv(gym.Env):
         self.control_rewards[self.counter] = error
         self.integral_error = 0.1 * (0.99 * self.control_rewards[self.counter - 1] + 0.99 * self.integral_error)
         reward -= self.integral_error
-        reward += 1200 / self.numTimeStep
+        reward += 4700 / self.numTimeStep
         reward -= rew_cof[1] * sum(abs(self.control_input - self.all_control[self.counter - 1, :]))
         reward -= rew_cof[2] * np.linalg.norm(self.control_input, 2)
         self.all_rewards[self.counter] = reward
         return reward
 
-    def check_diverge(self) -> bool:
+    def check_diverge(self, reward) -> bool:
+        bool_1 = any(np.isnan(self.current_states))
+        bool_2 = any(np.isinf(self.current_states))
+        if bool_1 or bool_2:
+            self.jj = 1
+            print("state_inf_nan_diverge")
+            self.observation = self.all_obs[self.counter - 1]
+            reward = self.min_reward - 100
+            return True, reward
+        if any(np.isnan(reward)) or any(np.isnan(reward)):
+            reward = self.min_reward - 100
+            return True, reward
         for i in range(12):
             if (abs(self.all_obs[self.counter, i])) > self.high_obs_space[i]:
                 self.saver.diverge_save(self.observation_space_domain, i)
                 self.jj = 1
 
         if self.jj == 1:
-            return True
+            return True, reward
         if self.counter >= self.no_timesteps - 1:  # number of timesteps
-            return True
+            return True, reward
         # after self.reward_check_time it checks whether or not the reward is decreasing
 
-        bool_1 = any(np.isnan(self.current_states))
-        bool_2 = any(np.isinf(self.current_states))
-        if bool_1 or bool_2:
-            self.jj = 1
-            print("state_inf_nan_diverge")
-        return False
+        return False, reward
 
     def done_jobs(self) -> None:
         counter = self.counter
@@ -331,7 +335,7 @@ class HelicopterEnv(gym.Env):
             self.jj = 1
         self.observation = self.observation_function()
         reward = self.reward_function(self.observation)
-        self.done = self.check_diverge()
+        self.done, reward = self.check_diverge(reward)
         if self.jj == 1:
             reward -= self.min_reward
         if self.done:

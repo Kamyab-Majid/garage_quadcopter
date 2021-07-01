@@ -68,7 +68,7 @@ def sac_helicopter(
     replay_buffer = PathBuffer(capacity_in_transitions=int(buffer_size))
 
     sampler = RaySampler(
-        agents=policy, envs=env, max_episode_length=env.spec.max_episode_length, worker_class=FragmentWorker
+        agents=policy, envs=env, max_episode_length=max_episode_length, worker_class=FragmentWorker
     )
 
     sac = SAC(
@@ -86,6 +86,7 @@ def sac_helicopter(
         buffer_batch_size=batch_size,
         reward_scale=1.0,
         steps_per_epoch=steps_per_epoch,
+        eval_env=env
     )
 
     if torch.cuda.is_available():
@@ -94,24 +95,24 @@ def sac_helicopter(
         set_gpu_mode(False)
     sac.to()
     trainer.setup(algo=sac, env=env)
-    trainer.train(n_epochs=1, batch_size=batch_size)
+    trainer.train(n_epochs=1000, batch_size=batch_size)
     return policy, env
 
 
 policy, try_env = sac_helicopter(
     seed=521,
-    gamma=0.98,
+    gamma=0.9999,
     gradient_steps_per_itr=2,
     max_episode_length=100000,
-    batch_size=512,
-    net_arch=[400, 400],
+    batch_size=128,
+    net_arch=[256, 256],
     min_std=-20,
     max_std=-1,
-    buffer_size=4000,
+    buffer_size=100,
     min_buffer_size=10,
-    tau=0.005,
+    tau=0.2,
     steps_per_epoch=16,
-    normalization=1,
+    normalization=0,
 )
 #     snapshotter = Snapshotter()
 #     with tf.compat.v1.Session():  # optional, only for TensorFlow

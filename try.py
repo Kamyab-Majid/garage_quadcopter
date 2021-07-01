@@ -5,6 +5,7 @@ import numpy as np
 
 my_contr = Controller()
 my_env = gym.make('gym_helicopter.envs:helicopter-v2')
+# my_env = gym.make("CustomEnv-v0")
 done = False
 observation = my_env.reset()
 my_env.save_counter = 10000
