@@ -226,8 +226,8 @@ class Helicopter:
         romega = r_angle - self.OMEGA
         qomega = q_angle + self.OMEGAtr
         mumr = sp.sqrt((u_velocity - uwind) ** 2 + (v_velocity - uwind) ** 2) / (self.OMEGA * self.Rmr)
-        main_induced_v = 16 / (sp.pi * (((Va_induced * 1.5 + 1.9)) ** 2 + 0.9)) + 0.01
-        tail_induced_v = 16 / (sp.pi * (((Va_induced_t * 1.5 + 1.9)) ** 2 + 0.9)) + 0.01
+        main_induced_v = 4.055 / (((Va_induced * 1.2 + 1.3)) ** 2 + 1.6) + 0.06
+        tail_induced_v = 4.055 / (((Va_induced_t * 1.2 + 1.3)) ** 2 + 1.6) + 0.06
         Vi = main_induced_v * self.vh / sp.sqrt(1 + mu)
         Vi_t = tail_induced_v * self.vhtr / sp.sqrt(1 + mu_tr)
         Vyi, Vzi = v_velocity - Vi_t - uwind, w_velocity - Vi - uwind
@@ -351,7 +351,7 @@ class Helicopter:
         F_total = F + (self.RbI(THETA)) ** (-1) * F_gravity
         Q = fQmr + bQmr.dot(U_input)
         Mroll = (self.Kbeta - Tmr * self.zcg) * b_flapping
-        Mpitch = (self.Kbeta - Tmr * self.zcg) * a_flapping
+        Mpitch = (self.Kbeta - Tmr * self.zcg) * a_flapping 
         Myaw = Q + Ttr * self.xfus
         M = sp.Matrix([Mroll, Mpitch, Myaw]).reshape(3, 1)
         x_dot1_3 = F_total / self.mass - omega.cross(Velocity)

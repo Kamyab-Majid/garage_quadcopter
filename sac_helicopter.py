@@ -95,17 +95,17 @@ def sac_helicopter(
         set_gpu_mode(False)
     sac.to()
     trainer.setup(algo=sac, env=env)
-    trainer.train(n_epochs=1000, batch_size=batch_size)
+    trainer.train(n_epochs=1, batch_size=batch_size)
     return policy, env
 
 
 policy, try_env = sac_helicopter(
     seed=521,
-    gamma=0.9999,
+    gamma=0.999,
     gradient_steps_per_itr=2,
     max_episode_length=100000,
     batch_size=128,
-    net_arch=[256, 256],
+    net_arch=[400, 400],
     min_std=-20,
     max_std=-1,
     buffer_size=100,
