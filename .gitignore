@@ -9,3 +9,5 @@ temporary.py
 temporary_jup.ipynb
 *.txt
 env_help.py
+heli-gym
+renderer

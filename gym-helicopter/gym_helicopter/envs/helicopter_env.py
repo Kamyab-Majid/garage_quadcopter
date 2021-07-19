@@ -41,10 +41,12 @@ class HelicopterEnv(gym.Env):
         self.t = sp.symbols("t")
         self.symbolic_states_math, jacobian = self.My_helicopter.lambd_eq_maker(self.t, self.x_state, self.U_input)
         self.default_range = default_range = (-100, 100)
-        self.velocity_range = velocity_range = (-200, 200)
+        self.velocity_range = velocity_range = (-100, 100)
         self.ang_velocity_range = ang_velocity_range = (-100, 100)
         self.ang_p_velocity_range = ang_p_velocity_range = (-100, 100)
         self.Ti, self.Ts, self.Tf = 0, 0.03, 8
+        self.angle_range = angle_range = (-np.pi, np.pi)
+        self.psi_range = psi_range = (-2 * np.pi, 2 * np.pi)
         self.observation_space_domain = {
             "u_velocity": velocity_range,
             "v_velocity": velocity_range,
@@ -52,9 +54,9 @@ class HelicopterEnv(gym.Env):
             "p_angle": ang_p_velocity_range,
             "q_angle": ang_velocity_range,
             "r_angle": ang_velocity_range,
-            "fi_angle": (-0.6, 0.6),
-            "theta_angle": (-0.6, 0.6),
-            "si_angle": (-0.6, 0.6),
+            "fi_angle": angle_range,
+            "theta_angle": angle_range,
+            "si_angle": psi_range,
             "xI": default_range,
             "yI": default_range,
             "zI": default_range,
@@ -189,7 +191,7 @@ class HelicopterEnv(gym.Env):
         # ran_ind = np.random.choice(3, size=1, replace=False)
         self.initial_states[9] = self.initial_states[9] + 1
         self.initial_states[10] = self.initial_states[10] + 1
-        self.initial_states[11] = self.initial_states[11] + 1 
+        self.initial_states[11] = self.initial_states[11] + 1
         print("initial_stateeeeeeeeeeeeeees")
         self.wind1 = np.array((0, 0, 0))  # (-1) ** np.random.choice([0, 1], 3) * 0 + 0.25 * (np.random.random(3) - 0.5)
         self.jk = 1
@@ -254,6 +256,7 @@ class HelicopterEnv(gym.Env):
             self.control_input,
         )
         self.current_states[16:19] = self.wind  # = self.wind + 0.005 * (np.random.random(3) - 0.5)
+
     def observation_function(self) -> list:
         self.observation = concat((self.current_states[0:16], self.control_input), axis=0)
         self.all_obs[self.counter] = concat((self.current_states[0:16], self.control_input), axis=0)
@@ -265,13 +268,44 @@ class HelicopterEnv(gym.Env):
         return self.observation
 
     def reward_function(self, observation, rew_cof=[650, 0.4, 1.5]) -> float:
-        error = -rew_cof[0] * (np.linalg.norm(observation[9:12].reshape(3), 1) + abs(observation[8]))
+        error = -rew_cof[0] * (np.linalg.norm(observation[9:12].reshape(3), 1))
         # print("error", error)
+        if all(abs(self.current_states[9:12])) < 0.1:
+            error = error + 1 - abs(observation[8])
         reward = error.copy()
         self.control_rewards[self.counter] = error
-        self.integral_error = (0.025 * self.control_rewards[self.counter - 1] + self.integral_error)
+        self.integral_error = 0.025 * self.control_rewards[self.counter] + self.integral_error
         # print("integral", self.integral_error)
         reward += self.integral_error
+        x = self.current_states[9]
+        y = self.current_states[10]
+        si = self.current_states[8]
+        si_d_angle = 0
+        if x >= 0:
+            if y > 0:
+                si_d_angle = np.arcsin(-x / np.sqrt(x ** 2 + y ** 2)) - np.pi / 2
+
+            else:
+                si_d_angle = np.arcsin(x / np.sqrt(x ** 2 + y ** 2)) + np.pi / 2
+        else:
+            if y >= 0:
+                si_d_angle = -np.arcsin(x / np.sqrt(x ** 2 + y ** 2)) - np.pi / 2
+            else:
+                si_d_angle = np.arcsin(x / np.sqrt(x ** 2 + y ** 2)) + np.pi / 2
+        if si_d_angle > np.pi:
+            si_d_angle -= 2 * np.pi
+        if si_d_angle <= -np.pi:
+            si_d_angle += 2 * np.pi
+        if -np.pi <= si <= np.pi:
+            si_ini_er = si - si_d_angle
+            si_error = min(abs(si_ini_er), abs(si_ini_er + 2 * np.pi), abs(si_ini_er - 2 * np.pi)) / self.psi_range[1]
+        elif si > np.pi:
+            si_ini_er = si - si_d_angle - 2 * np.pi
+            si_error = min(abs(si_ini_er), abs(si_ini_er + 2 * np.pi), abs(si_ini_er - 2 * np.pi)) / self.psi_range[1]
+        else:
+            si_ini_er = si - si_d_angle + 2 * np.pi
+            si_error = min(abs(si_ini_er), abs(si_ini_er + 2 * np.pi), abs(si_ini_er - 2 * np.pi)) / self.psi_range[1]
+        reward -= si_error
         reward += 30000 / self.numTimeStep
         # print(4500 / self.numTimeStep)
         reward -= rew_cof[1] * sum(abs(self.control_input - self.all_control[self.counter - 1, :]))
