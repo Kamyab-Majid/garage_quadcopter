@@ -89,6 +89,7 @@ class Controller:
         self.Is = np.array([[(0.19 + 0.0004) / 2, 0, 0], [0, (0.19 + 0.0004) / 2, 0], [0, 0, 0.19]], dtype=float)
         self.I_moment_Is_inverse = np.linalg.inv(self.I_moment + self.Is)
         self.action = [1, 10, 10, 5, 5, 1, 1, 2, 2, 1, 1, 1, 1]
+        self.psi_des = 0
 
     def Controller_model(self, current_states, time_input, action=[1, 10, 10, 5, 5, 1, 1, 2, 2, 1, 1, 1, 1]):
         self.action = action
@@ -399,7 +400,7 @@ class Controller:
             y_des, y_ddes, y_dddes = 0, 0, 0
             z_des, z_ddes, z_dddes = -cp_action, 0, 0
             psi_des, psi_ddes, psi_dddes = 2 * pi, 0, 0
-        Y_des = np.array([x_des, y_des, z_des, psi_des], dtype=float).reshape(4, 1)
+        Y_des = np.array([x_des, y_des, z_des, self.psi_des], dtype=float).reshape(4, 1)
         Y_ddes = np.array([x_ddes, y_ddes, z_ddes, psi_ddes], dtype=float).reshape(4, 1)
         Y_dddes = np.array([x_dddes, y_dddes, z_dddes, psi_dddes], dtype=float).reshape(4, 1)
         return Y_des, Y_ddes, Y_dddes

@@ -12,7 +12,7 @@ import random
 
 class HelicopterEnv(gym.Env):
     def __init__(self):
-        print("changed reward tuned")
+        print("tuned tuned tuned")
         self.Controller = Controller()
         self.U_input = [U1, U2, U3, U4] = sp.symbols("U1:5", real=True)
         self.x_state = [
@@ -45,7 +45,7 @@ class HelicopterEnv(gym.Env):
         self.ang_velocity_range = ang_velocity_range = (-100, 100)
         self.ang_p_velocity_range = ang_p_velocity_range = (-100, 100)
         self.Ti, self.Ts, self.Tf = 0, 0.03, 8
-        self.angle_range = angle_range = (-np.pi, np.pi)
+        self.angle_range = angle_range = (-np.pi / 2, np.pi / 2)
         self.psi_range = psi_range = (-2 * np.pi, 2 * np.pi)
         self.observation_space_domain = {
             "u_velocity": velocity_range,
@@ -65,10 +65,10 @@ class HelicopterEnv(gym.Env):
             "c_flapping": velocity_range,
             "d_flapping": velocity_range,
             # "t": (self.Ti, self.Tf),
-            "delta_col": (-1000, 1000),
-            "delta_lat": (-1000, 1000),
-            "delta_lon": (-1000, 1000),
-            "delta_ped": (-1000, 1000),
+            "delta_col": (-10, 10),
+            "delta_lat": (-10, 10),
+            "delta_lon": (-10, 10),
+            "delta_ped": (-10, 10),
         }
         self.states_str = list(self.observation_space_domain.keys())
         self.low_obs_space = np.array(tuple(zip(*self.observation_space_domain.values()))[0], dtype=np.float32)
@@ -204,6 +204,11 @@ class HelicopterEnv(gym.Env):
         self.all_control = np.zeros((self.no_timesteps, 4))
         self.all_rewards = np.zeros((self.no_timesteps, 1))
         self.control_rewards = np.zeros((self.no_timesteps, 1))
+        self.control_rewards1 = np.zeros((self.no_timesteps, 1))
+        self.control_rewards2 = np.zeros((self.no_timesteps, 1))
+        self.control_rewards3 = np.zeros((self.no_timesteps, 1))
+        self.control_rewards4 = np.zeros((self.no_timesteps, 1))
+        self.control_rewards5 = np.zeros((self.no_timesteps, 1))
         self.control_input = np.array((0, 0, 0, 0), dtype=np.float32)
         self.jj = 0
         self.counter = 0
@@ -267,15 +272,15 @@ class HelicopterEnv(gym.Env):
             )
         return self.observation
 
-    def reward_function(self, observation, rew_cof=[650, 0.4, 1.5]) -> float:
+    def reward_function(self, observation, rew_cof=[6.5, 0.04, 0.015]) -> float:
         error = -rew_cof[0] * (np.linalg.norm(observation[9:12].reshape(3), 1))
-        # print("error", error)
         if all(abs(self.current_states[9:12])) < 0.1:
             error = error + 1 - abs(observation[8])
         reward = error.copy()
         self.control_rewards[self.counter] = error
         self.integral_error = 0.025 * self.control_rewards[self.counter] + self.integral_error
-        # print("integral", self.integral_error)
+        self.control_rewards1[self.counter] = self.integral_error
+
         reward += self.integral_error
         x = self.current_states[9]
         y = self.current_states[10]
@@ -283,15 +288,15 @@ class HelicopterEnv(gym.Env):
         si_d_angle = 0
         if x >= 0:
             if y > 0:
-                si_d_angle = np.arcsin(-x / np.sqrt(x ** 2 + y ** 2)) - np.pi / 2
+                si_d_angle = -np.arctan(x / y) - np.pi / 2
 
             else:
-                si_d_angle = np.arcsin(x / np.sqrt(x ** 2 + y ** 2)) + np.pi / 2
+                si_d_angle = -np.arctan(x / y) + np.pi / 2
         else:
             if y >= 0:
-                si_d_angle = -np.arcsin(x / np.sqrt(x ** 2 + y ** 2)) - np.pi / 2
+                si_d_angle = -np.arctan(x / y) - np.pi / 2
             else:
-                si_d_angle = np.arcsin(x / np.sqrt(x ** 2 + y ** 2)) + np.pi / 2
+                si_d_angle = -np.arctan(x / y) + np.pi / 2
         if si_d_angle > np.pi:
             si_d_angle -= 2 * np.pi
         if si_d_angle <= -np.pi:
@@ -305,15 +310,21 @@ class HelicopterEnv(gym.Env):
         else:
             si_ini_er = si - si_d_angle + 2 * np.pi
             si_error = min(abs(si_ini_er), abs(si_ini_er + 2 * np.pi), abs(si_ini_er - 2 * np.pi)) / self.psi_range[1]
-        reward -= si_error
-        reward += 30000 / self.numTimeStep
-        # print(4500 / self.numTimeStep)
+        reward -= np.tanh(x ** 2 + y ** 2) * si_error
+        self.control_rewards2[self.counter] = si_error
+
+        reward += 5000 / self.numTimeStep
+        self.control_rewards3[self.counter] = 5000 / self.numTimeStep
+
         reward -= rew_cof[1] * sum(abs(self.control_input - self.all_control[self.counter - 1, :]))
-        # print("cntrl_d", -rew_cof[1] * sum(abs(self.control_input - self.all_control[self.counter - 1, :])))
+        self.control_rewards4[self.counter] = -rew_cof[1] * sum(
+            abs(self.control_input - self.all_control[self.counter - 1, :])
+        )
+
         reward -= rew_cof[2] * np.linalg.norm(self.control_input, 2)
-        # print("contrl", -rew_cof[2] * np.linalg.norm(self.control_input, 2))
+        self.control_rewards5[self.counter] = -rew_cof[2] * np.linalg.norm(self.control_input, 2)
+
         self.all_rewards[self.counter] = reward
-        # print("rew", reward)
         return reward
 
     def check_diverge(self, reward) -> bool:
@@ -321,16 +332,13 @@ class HelicopterEnv(gym.Env):
         bool_2 = any(np.isinf(self.current_states))
         if bool_1 or bool_2:
             self.jj = 1
-            print("state_inf_nan_diverge")
+            print(self.current_states)
             self.observation = self.all_obs[self.counter - 1]
             reward = self.min_reward - 100
             return True, reward
-        try:
-            if any(np.isnan(reward)) or any(np.isnan(reward)):
-                reward = self.min_reward - 100
-                return True, reward
-        except OverflowError:
-            pass
+        if np.isnan(reward) or np.isinf(reward):
+            reward = self.min_reward - 100
+            return True, reward
         for i in range(12):
             if (abs(self.all_obs[self.counter, i])) > self.high_obs_space[i]:
                 self.saver.diverge_save(self.observation_space_domain, i)
@@ -342,7 +350,7 @@ class HelicopterEnv(gym.Env):
             return True, reward
         # after self.reward_check_time it checks whether or not the reward is decreasing
 
-        return False, reward
+        return False, np.clip(reward, -1000, 1000)
 
     def done_jobs(self) -> None:
         counter = self.counter
@@ -354,7 +362,7 @@ class HelicopterEnv(gym.Env):
             self.saver.reward_step_save(self.best_reward, self.longest_num_step, current_total_reward, counter)
         if counter >= self.longest_num_step:
             self.longest_num_step = counter
-        if current_total_reward >= self.best_reward * 1.01 and sum(self.all_rewards) != 0:
+        if current_total_reward >= self.best_reward and sum(self.all_rewards) != 0:
             self.best_reward = current_total_reward
             ii = self.counter + 1
             self.saver.best_reward_save(
@@ -362,7 +370,17 @@ class HelicopterEnv(gym.Env):
                 self.all_actions[0:ii],
                 self.all_obs[0:ii],
                 self.all_rewards[0:ii],
-                self.control_rewards[0:ii],
+                np.concatenate(
+                    (
+                        self.control_rewards[0:ii],
+                        self.control_rewards1[0:ii],
+                        self.control_rewards2[0:ii],
+                        self.control_rewards3[0:ii],
+                        self.control_rewards4[0:ii],
+                        self.control_rewards5[0:ii],
+                    ),
+                    axis=1,
+                ),
                 self.header,
             )
 
@@ -381,7 +399,11 @@ class HelicopterEnv(gym.Env):
             self.done_jobs()
         self.counter += 1
         # self.make_constant(list(self.constant_dict.values()))
-        return self.observation, reward, self.done, {}
+        if np.isnan(reward) or any((np.isnan(self.observation))):
+            reward = -100
+            self.current_states = self.initial_states * 0 - 10
+            self.observation = self.observation_function()
+        return np.clip(self.observation, -100, 100), np.clip(reward, -1000, 1000), self.done, {}
 
     def make_constant(self, true_list):
         for i in range(len(true_list)):

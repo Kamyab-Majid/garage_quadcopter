@@ -26,7 +26,7 @@ def sac_helicopter_resume(ctxt=None, snapshot_dir="data/local/experiment/sac_hel
     set_seed(seed)
     trainer = Trainer(snapshot_config=ctxt)
     trainer.restore(snapshot_dir)
-    trainer.resume(n_epochs=2000, batch_size=128)
+    trainer.resume(n_epochs=2, batch_size=128)
 
 
 sac_helicopter_resume(seed=521)

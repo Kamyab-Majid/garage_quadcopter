@@ -19,7 +19,7 @@ import logging
 import sys
 
 
-@wrap_experiment(archive_launch_repo=False)
+@wrap_experiment(archive_launch_repo=False,snapshot_gap=500,snapshot_mode="gap")
 def sac_helicopter(
     ctxt=None,
     seed=1,
@@ -86,7 +86,8 @@ def sac_helicopter(
         buffer_batch_size=batch_size,
         reward_scale=1.0,
         steps_per_epoch=steps_per_epoch,
-        eval_env=env
+        eval_env=env,
+        initial_log_entropy = 1
     )
 
     if torch.cuda.is_available():
@@ -95,7 +96,7 @@ def sac_helicopter(
         set_gpu_mode(False)
     sac.to()
     trainer.setup(algo=sac, env=env)
-    trainer.train(n_epochs=1, batch_size=batch_size)
+    trainer.train(n_epochs=5000, batch_size=batch_size)
     return policy, env
 
 
@@ -103,14 +104,14 @@ policy, try_env = sac_helicopter(
     seed=521,
     gamma=0.999,
     gradient_steps_per_itr=2,
-    max_episode_length=100000,
-    batch_size=128,
-    net_arch=[400, 400],
+    max_episode_length=4000,
+    batch_size=8,
+    net_arch=[1000, 800, 400],
     min_std=-20,
     max_std=-1,
-    buffer_size=100,
-    min_buffer_size=10,
-    tau=0.2,
+    buffer_size=1_000_000,
+    min_buffer_size=100_000,
+    tau=5e-3,
     steps_per_epoch=16,
     normalization=0,
 )
@@ -127,7 +128,7 @@ for i in range(10):
     policy.reset()
     while steps < max_steps and not done:
         try:
-            all_data = try_env.step(policy.get_action(obs)[0])
+            all_data = try_env.step(policy.get_action(obs)[1]['mean'])
             obs = all_data.observation
             done = all_data.terminal
             rew = all_data.reward
