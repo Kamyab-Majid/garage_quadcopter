@@ -1,5 +1,6 @@
 garage/
 results/
+all_results/
 *.csv
 *.ipynb
 data/
@@ -11,3 +12,8 @@ temporary_jup.ipynb
 env_help.py
 heli-gym
 renderer
+*.eps
+*.pdf
+*.mp4
+*.png
+__pycache__

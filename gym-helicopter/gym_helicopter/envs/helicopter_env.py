@@ -12,7 +12,7 @@ import random
 
 class HelicopterEnv(gym.Env):
     def __init__(self):
-        print("tuned tuned tuned")
+        print("tuned111")
         self.Controller = Controller()
         self.U_input = [U1, U2, U3, U4] = sp.symbols("U1:5", real=True)
         self.x_state = [
@@ -40,7 +40,7 @@ class HelicopterEnv(gym.Env):
         self.My_controller = Controller()
         self.t = sp.symbols("t")
         self.symbolic_states_math, jacobian = self.My_helicopter.lambd_eq_maker(self.t, self.x_state, self.U_input)
-        self.default_range = default_range = (-100, 100)
+        self.default_range = default_range = (-2, 2)
         self.velocity_range = velocity_range = (-100, 100)
         self.ang_velocity_range = ang_velocity_range = (-100, 100)
         self.ang_p_velocity_range = ang_p_velocity_range = (-100, 100)
@@ -112,13 +112,18 @@ class HelicopterEnv(gym.Env):
             + act_header
             + ", "
             + obs_header[0:130]
-            + ","
-            + "uwind,"
-            + "vwind,"
-            + "wwind,"
+            + ",a,"
+            + "b,"
+            + "c,"
+            + "d,"
             + obs_header[189:240]
-            + "reward,"
-            + "control_reward"
+            + ",rew,"
+            + "cont_rew,"
+            + "int_rew,"
+            + "si_rew,"
+            + "f_rew,"
+            + "dinput_rew,"
+            + "input_rew,"
         )
         self.saver = save_files()
         self.reward_array = np.array((0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0), dtype=np.float32)
@@ -189,10 +194,10 @@ class HelicopterEnv(gym.Env):
             + 0.01
         )  # 15d
         # ran_ind = np.random.choice(3, size=1, replace=False)
-        self.initial_states[9] = self.initial_states[9] + 1
-        self.initial_states[10] = self.initial_states[10] + 1
-        self.initial_states[11] = self.initial_states[11] + 1
-        print("initial_stateeeeeeeeeeeeeees")
+        #         self.initial_states[9] = self.initial_states[9] + 1
+        #         self.initial_states[10] = self.initial_states[10] + 1
+        #         self.initial_states[11] = self.initial_states[11] + 1
+        #         print("initial_stateeeeeeeeeeeeeees")
         self.wind1 = np.array((0, 0, 0))  # (-1) ** np.random.choice([0, 1], 3) * 0 + 0.25 * (np.random.random(3) - 0.5)
         self.jk = 1
 
@@ -221,11 +226,14 @@ class HelicopterEnv(gym.Env):
         )
         self.jk = self.jk + 0.001
         self.current_states = concat((self.initial_states, self.wind), axis=0)  # * (1 + s * a)
-
+        self.current_states[9] = self.initial_states[9]  # float(np.random.choice([1, -1, 0], 1))
+        self.current_states[10] = self.initial_states[10]  # float(np.random.choice([1, -1, 0], 1))
+        self.current_states[11] = self.initial_states[11]  # float(np.random.choice([1, -1, 0], 1))
+        print("changedinitial")
         self.observation = self.observation_function()
         self.done = False
         self.integral_error = 0
-        return self.observation
+        return np.clip(self.observation, -0.5, 0.5)
 
     def action_wrapper(self, current_action, obs) -> np.array:
         self.normilized_actions = current_action
@@ -239,28 +247,25 @@ class HelicopterEnv(gym.Env):
             un_act[6] * 5 * obs[10] + un_act[7] * 5 * obs[1] + un_act[8] * 5 * obs[3] + un_act[9] * obs[6]
         )
         self.control_input[3] = un_act[10] * 5 * obs[5] + un_act[11] * 5 * obs[8]
-        self.control_input[0] = 2.1167 * self.control_input[0] + 0.1
-        self.control_input[1] = 2.03125 * self.control_input[1]
-        self.control_input[2] = 2.02857 * self.control_input[2]
-        self.control_input[3] = 2.2227 * self.control_input[3] + 0.18
+        self.control_input[0] = 2.1167 * np.tanh(self.control_input[0]) + 0.1
+        self.control_input[1] = 2.03125 * np.tanh(self.control_input[1])
+        self.control_input[2] = 2.02857 * np.tanh(self.control_input[2])
+        self.control_input[3] = 2.2227 * np.tanh(self.control_input[3]) + 0.18
 
         self.all_control[self.counter] = self.control_input
 
     def find_next_state(self) -> list:
         current_t = self.Ts * self.counter
-        # self.control_input = self.Controller.Controller_model(
-        #     self.current_states[0:16],
-        #     current_t,
-        #     # action=[1.09e-01, -1.78e-02, -2.20e-05, 0.19, 0.4, 4.1, 4.1, 1.5, 1.5, 0.5, 1, 0.7, 0.5, 0.4, 1, 0.6, 0.5],
-        # )
+        self.control_input = self.Controller.Controller_model(self.current_states[0:16], current_t,)
+        print("cont")
+        self.wind = self.wind + 0.2 * (np.random.random() - 0.5)
+        self.current_states[16:19] = self.wind
+        print("withwind")
+        # action=[1.09e-01, -1.78e-02, -2.20e-05, 0.19, 0.4, 4.1, 4.1, 1.5, 1.5, 0.5, 1, 0.7, 0.5, 0.4, 1, 0.6, 0.5],
         self.current_states[0:19] = self.My_helicopter.RK45(
-            current_t,
-            self.current_states[0:19],
-            self.symbolic_states_math,
-            self.Ts,
-            self.control_input,
+            current_t, self.current_states[0:19], self.symbolic_states_math, self.Ts, self.control_input,
         )
-        self.current_states[16:19] = self.wind  # = self.wind + 0.005 * (np.random.random(3) - 0.5)
+        # = self.wind + 0.005 * (np.random.random(3) - 0.5)
 
     def observation_function(self) -> list:
         self.observation = concat((self.current_states[0:16], self.control_input), axis=0)
@@ -272,59 +277,66 @@ class HelicopterEnv(gym.Env):
             )
         return self.observation
 
-    def reward_function(self, observation, rew_cof=[6.5, 0.04, 0.015]) -> float:
-        error = -rew_cof[0] * (np.linalg.norm(observation[9:12].reshape(3), 1))
+    def reward_function(self, observation, rew_cof=[10, 0.08, 0.015]) -> float:
+        error = -rew_cof[0] * (np.linalg.norm(observation[9:12].reshape(3), 4))
         if all(abs(self.current_states[9:12])) < 0.1:
             error = error + 1 - abs(observation[8])
         reward = error.copy()
         self.control_rewards[self.counter] = error
-        self.integral_error = 0.025 * self.control_rewards[self.counter] + self.integral_error
-        self.control_rewards1[self.counter] = self.integral_error
 
-        reward += self.integral_error
+        self.control_rewards1[self.counter] = (
+            0.025 * self.control_rewards[self.counter] + self.control_rewards1[self.counter - 1]
+        )
+
+        reward += self.control_rewards1[self.counter]
         x = self.current_states[9]
         y = self.current_states[10]
         si = self.current_states[8]
-        si_d_angle = 0
-        if x >= 0:
-            if y > 0:
-                si_d_angle = -np.arctan(x / y) - np.pi / 2
+        #         si_d_angle = 0
+        #         if x >= 0:
+        #             if y > 0:
+        #                 si_d_angle = -np.arctan(x / y) - np.pi / 2
 
-            else:
-                si_d_angle = -np.arctan(x / y) + np.pi / 2
-        else:
-            if y >= 0:
-                si_d_angle = -np.arctan(x / y) - np.pi / 2
-            else:
-                si_d_angle = -np.arctan(x / y) + np.pi / 2
-        if si_d_angle > np.pi:
-            si_d_angle -= 2 * np.pi
-        if si_d_angle <= -np.pi:
-            si_d_angle += 2 * np.pi
-        if -np.pi <= si <= np.pi:
-            si_ini_er = si - si_d_angle
-            si_error = min(abs(si_ini_er), abs(si_ini_er + 2 * np.pi), abs(si_ini_er - 2 * np.pi)) / self.psi_range[1]
-        elif si > np.pi:
-            si_ini_er = si - si_d_angle - 2 * np.pi
-            si_error = min(abs(si_ini_er), abs(si_ini_er + 2 * np.pi), abs(si_ini_er - 2 * np.pi)) / self.psi_range[1]
-        else:
-            si_ini_er = si - si_d_angle + 2 * np.pi
-            si_error = min(abs(si_ini_er), abs(si_ini_er + 2 * np.pi), abs(si_ini_er - 2 * np.pi)) / self.psi_range[1]
-        reward -= np.tanh(x ** 2 + y ** 2) * si_error
-        self.control_rewards2[self.counter] = si_error
+        #             else:
+        #                 si_d_angle = -np.arctan(x / y) + np.pi / 2
+        #         else:
+        #             if y >= 0:
+        #                 si_d_angle = -np.arctan(x / y) - np.pi / 2
+        #             else:
+        #                 si_d_angle = -np.arctan(x / y) + np.pi / 2
+        #         if si_d_angle > np.pi:
+        #             si_d_angle -= 2 * np.pi
+        #         if si_d_angle <= -np.pi:
+        #             si_d_angle += 2 * np.pi
+        #         if -np.pi <= si <= np.pi:
+        #             si_ini_er = si - si_d_angle
+        #             si_error = min(abs(si_ini_er), abs(si_ini_er + 2 * np.pi), abs(si_ini_er - 2 * np.pi)) / self.psi_range[1]
+        #         elif si > np.pi:
+        #             si_ini_er = si - si_d_angle - 2 * np.pi
+        #             si_error = min(abs(si_ini_er), abs(si_ini_er + 2 * np.pi), abs(si_ini_er - 2 * np.pi)) / self.psi_range[1]
+        #         else:
+        #             si_ini_er = si - si_d_angle + 2 * np.pi
+        #             si_error = min(abs(si_ini_er), abs(si_ini_er + 2 * np.pi), abs(si_ini_er - 2 * np.pi)) / self.psi_range[1]
+        #         reward -= 0.250 * np.tanh(x ** 2 + y ** 2) * si_error
+        z = self.current_states[11]
+        self.control_rewards2[self.counter] = -0.1 * np.tanh(
+            0.250 / ((1 + 20 * (x ** 2 + y ** 2 + z ** 2)) ** 3 / 2) * abs(si)
+        )
+        reward += self.control_rewards2[self.counter]
 
-        reward += 5000 / self.numTimeStep
         self.control_rewards3[self.counter] = 5000 / self.numTimeStep
+        reward += self.control_rewards3[self.counter]
 
-        reward -= rew_cof[1] * sum(abs(self.control_input - self.all_control[self.counter - 1, :]))
         self.control_rewards4[self.counter] = -rew_cof[1] * sum(
             abs(self.control_input - self.all_control[self.counter - 1, :])
         )
+        reward += self.control_rewards4[self.counter]
 
-        reward -= rew_cof[2] * np.linalg.norm(self.control_input, 2)
         self.control_rewards5[self.counter] = -rew_cof[2] * np.linalg.norm(self.control_input, 2)
+        reward += self.control_rewards5[self.counter]
 
         self.all_rewards[self.counter] = reward
+
         return reward
 
     def check_diverge(self, reward) -> bool:
@@ -332,7 +344,7 @@ class HelicopterEnv(gym.Env):
         bool_2 = any(np.isinf(self.current_states))
         if bool_1 or bool_2:
             self.jj = 1
-            print(self.current_states)
+            # print(self.current_states)
             self.observation = self.all_obs[self.counter - 1]
             reward = self.min_reward - 100
             return True, reward
@@ -353,11 +365,34 @@ class HelicopterEnv(gym.Env):
         return False, np.clip(reward, -1000, 1000)
 
     def done_jobs(self) -> None:
+
+        ii = self.counter + 1
+        self.saver.best_reward_save(
+            self.all_t[0:ii],
+            self.all_actions[0:ii],
+            self.all_obs[0:ii],
+            self.all_rewards[0:ii],
+            np.concatenate(
+                (
+                    self.control_rewards[0:ii],
+                    self.control_rewards1[0:ii],
+                    self.control_rewards2[0:ii],
+                    self.control_rewards3[0:ii],
+                    self.control_rewards4[0:ii],
+                    self.control_rewards5[0:ii],
+                ),
+                axis=1,
+            ),
+            self.header,
+        )
+        print("saved_reward")
+        self.best_reward = 0
+        print("bestreward=0381")
         counter = self.counter
         self.save_counter += 1
         current_total_reward = sum(self.all_rewards)
         if self.save_counter >= 1000:
-            print("current_total_reward: ", current_total_reward)
+            # print("current_total_reward: ", current_total_reward)
             self.save_counter = 0
             self.saver.reward_step_save(self.best_reward, self.longest_num_step, current_total_reward, counter)
         if counter >= self.longest_num_step:
@@ -385,7 +420,9 @@ class HelicopterEnv(gym.Env):
             )
 
     def step(self, current_action):
-        self.action_wrapper(current_action, self.observation)
+        # self.action_wrapper(current_action, self.observation)
+        print("changed_action")
+        self.control_input = current_action
         try:
             self.find_next_state()
         except OverflowError or ValueError or IndexError:
