@@ -5,7 +5,6 @@ from numpy import concatenate as concat
 import gym
 from gym import spaces
 from env.Helicopter import Helicopter
-from env.controller import Controller
 from utils_main import save_files
 import random
 
@@ -13,7 +12,6 @@ import random
 class HelicopterEnv(gym.Env):
     def __init__(self):
         print("tuned111")
-        self.Controller = Controller()
         self.U_input = [U1, U2, U3, U4] = sp.symbols("U1:5", real=True)
         self.x_state = [
             u_velocity,
@@ -37,7 +35,6 @@ class HelicopterEnv(gym.Env):
             wwind,
         ] = sp.symbols("x1:20", real=True)
         self.My_helicopter = Helicopter()
-        self.My_controller = Controller()
         self.t = sp.symbols("t")
         self.symbolic_states_math, jacobian = self.My_helicopter.lambd_eq_maker(self.t, self.x_state, self.U_input)
         self.default_range = default_range = (-2, 2)
@@ -217,7 +214,6 @@ class HelicopterEnv(gym.Env):
         self.control_input = np.array((0, 0, 0, 0), dtype=np.float32)
         self.jj = 0
         self.counter = 0
-        # Yd, Ydotd, Ydotdotd, Y, Ydot = self.My_controller.Yposition(0, self.current_states)
 
         # self.current_states = self.initial_states  # * (1 + s * a)
         # [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
@@ -256,8 +252,6 @@ class HelicopterEnv(gym.Env):
 
     def find_next_state(self) -> list:
         current_t = self.Ts * self.counter
-        self.control_input = self.Controller.Controller_model(self.current_states[0:16], current_t,)
-        print("cont")
         self.wind = self.wind + 0.2 * (np.random.random() - 0.5)
         self.current_states[16:19] = self.wind
         print("withwind")
